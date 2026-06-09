@@ -24,6 +24,9 @@ dependencies {
     // ASM — bytecode parsing for the core analyzer (parse-only, never loads/links classes)
     implementation("org.ow2.asm:asm:9.7.1")
     implementation("org.ow2.asm:asm-tree:9.7.1")
+    // ASM dataflow framework — used to fold String constants (locals, StringBuilder, concat) so
+    // reflective targets assembled from more than one ldc are still resolved.
+    implementation("org.ow2.asm:asm-analysis:9.7.1")
 
     // SnakeYAML for plugin.yml parsing (version managed by Spring Boot BOM)
     implementation("org.yaml:snakeyaml")

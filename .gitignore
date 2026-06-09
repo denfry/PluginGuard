@@ -1,7 +1,13 @@
 # Java / Gradle
 analyzer/.gradle/
 analyzer/build/
+analyzer/sandbox-runtime/.gradle/
+analyzer/sandbox-runtime/build/
 *.class
+
+# Plugin samples dropped at the repo root for manual testing (may be third-party
+# binaries we have no right to redistribute — never commit them)
+/*.jar
 
 # Node / Next.js
 web/node_modules/

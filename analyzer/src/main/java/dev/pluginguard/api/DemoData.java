@@ -1,10 +1,15 @@
 package dev.pluginguard.api;
 
 import dev.pluginguard.engine.AnalysisEngine;
+import dev.pluginguard.engine.model.BehaviorEvent;
 import dev.pluginguard.engine.model.Category;
 import dev.pluginguard.engine.model.Dependency;
+import dev.pluginguard.engine.model.DynamicFinding;
+import dev.pluginguard.engine.model.DynamicFinding.DynamicCorrelation;
 import dev.pluginguard.engine.model.Finding;
 import dev.pluginguard.engine.model.PluginInfo;
+import dev.pluginguard.engine.model.SandboxReport;
+import dev.pluginguard.engine.model.SandboxStatus;
 import dev.pluginguard.engine.model.ScanResult;
 import dev.pluginguard.engine.model.Severity;
 import dev.pluginguard.engine.model.SeverityCounts;
@@ -72,6 +77,39 @@ public final class DemoData {
 
         int score = 78;
         SeverityCounts counts = SeverityCounts.from(findings);
+
+        SandboxReport sandbox = new SandboxReport(
+                SandboxStatus.COMPLETED,
+                "docker",
+                Instant.parse("2026-06-09T12:00:01Z"),
+                Instant.parse("2026-06-09T12:00:06Z"),
+                4800L,
+                Severity.HIGH,
+                7,
+                List.of(
+                        new DynamicFinding("DYNAMIC_NETWORK_CONNECT", "NETWORK_CONNECT", Severity.HIGH,
+                                "Opened an outbound connection", "discord.com:443", true, 1,
+                                DynamicCorrelation.CONFIRMS_STATIC,
+                                "While running, the plugin tried to reach discord.com — blocked by the network-isolated "
+                                        + "sandbox. This confirms the statically-detected webhook.",
+                                "Confirm the destination is expected — see the Network summary."),
+                        new DynamicFinding("DYNAMIC_REFLECTION", "REFLECTION", Severity.MEDIUM,
+                                "Used reflection", "java.lang.Class.forName", false, 3,
+                                DynamicCorrelation.CONFIRMS_STATIC,
+                                "The plugin used reflection at runtime to reach version-specific server classes.",
+                                "Common in Minecraft plugins, but review the targets.")),
+                List.of(
+                        new BehaviorEvent("LIFECYCLE", "onEnable", null, null, false),
+                        new BehaviorEvent("REFLECTION", "java.lang.Class.forName", "observed at an instrumented call site", null, false),
+                        new BehaviorEvent("NETWORK_CONNECT", "discord.com:443", "blocked by sandbox SecurityManager", null, true),
+                        new BehaviorEvent("LIFECYCLE", "onDisable", null, null, false)),
+                List.of(
+                        "A sandbox observes only the code paths the harness triggered; behavior gated on a "
+                                + "specific date, environment or in-game event can stay dormant.",
+                        "Malware can detect that it is being analyzed and deliberately behave benignly (sandbox evasion).",
+                        "Blocked actions are still strong evidence of intent — the plugin tried, the sandbox stopped it."),
+                null);
+
         return new ScanResult(
                 "demo",
                 "ChatGuard-1.4.2.jar",
@@ -87,9 +125,11 @@ public final class DemoData {
                 info,
                 findings,
                 summaries,
-                List.of("This is a demonstration report with illustrative data."),
+                List.of("This is a demonstration report with illustrative data.",
+                        "Dynamic sandbox observed 7 behavior event(s); 2 dynamic finding(s)."),
                 Instant.parse("2026-06-09T12:00:00Z"),
                 42L,
-                AnalysisEngine.ENGINE_VERSION);
+                AnalysisEngine.ENGINE_VERSION,
+                sandbox);
     }
 }

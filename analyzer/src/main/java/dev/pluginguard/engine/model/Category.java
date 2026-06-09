@@ -14,8 +14,12 @@ public enum Category {
     FILESYSTEM,
     CRYPTO,
     REFLECTION,
+    SCRIPTING,
+    DESERIALIZATION,
     SYSTEM,
     OBFUSCATION,
     STRING_IOC,
+    SUPPLY_CHAIN,
+    COMBO,
     PROVENANCE
 }

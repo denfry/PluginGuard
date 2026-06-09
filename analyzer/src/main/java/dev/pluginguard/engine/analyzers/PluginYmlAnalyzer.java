@@ -75,15 +75,21 @@ public class PluginYmlAnalyzer implements Analyzer {
         String version = asString(root.get("version"));
         String main = asString(root.get("main"));
         String apiVersion = asString(root.get("api-version"));
+        String load = asString(root.get("load"));
         List<String> authors = mergeAuthors(root);
         List<String> commands = mapKeys(root.get("commands"));
         List<String> permissions = mapKeys(root.get("permissions"));
         List<String> depend = asStringList(root.get("depend"));
         List<String> softDepend = asStringList(root.get("softdepend"));
+        List<String> loadBefore = asStringList(root.get("loadbefore"));
         List<String> libraries = asStringList(root.get("libraries"));
 
         ctx.setPluginInfo(new PluginInfo(file.name(), name, version, main, apiVersion,
                 authors, commands, permissions, depend, softDepend, libraries));
+
+        checkLoadOrder(ctx, file.name(), load, loadBefore);
+        checkLibraries(ctx, file.name(), libraries);
+        checkDependencyCount(ctx, file.name(), depend, softDepend);
 
         // Main class must exist in the JAR.
         if (main != null && !main.isBlank()) {
@@ -151,6 +157,54 @@ public class PluginYmlAnalyzer implements Analyzer {
                         .scoreImpact(8)
                         .build());
             }
+        }
+    }
+
+    /** A plugin that loads at STARTUP or forces itself ahead of others can pre-empt security plugins. */
+    private void checkLoadOrder(AnalysisContext ctx, String file, String load, List<String> loadBefore) {
+        if (load != null && load.equalsIgnoreCase("STARTUP")) {
+            ctx.add(Finding.builder("YML_LOAD_STARTUP", Category.PLUGIN_YML, Severity.LOW)
+                    .title("Loads at server STARTUP")
+                    .description("The descriptor declares 'load: STARTUP', so the plugin initialises very early in the "
+                            + "server lifecycle — before worlds load. Legitimate for some integrations, but it also "
+                            + "lets a plugin run before other safeguards are active.")
+                    .recommendation("Confirm the plugin genuinely needs to load at startup.")
+                    .location(file).evidence("load: STARTUP").scoreImpact(4).build());
+        }
+        if (!loadBefore.isEmpty()) {
+            ctx.add(Finding.builder("YML_LOADBEFORE", Category.PLUGIN_YML, Severity.LOW)
+                    .title("Forces itself to load before other plugins")
+                    .description("The descriptor uses 'loadbefore' (" + String.join(", ", loadBefore) + ") to force this "
+                            + "plugin ahead of others in load order. This can be used to get in front of logging or "
+                            + "anti-cheat/security plugins.")
+                    .recommendation("Check which plugins it inserts itself before and why.")
+                    .location(file).evidence("loadbefore: " + String.join(", ", loadBefore)).scoreImpact(4).build());
+        }
+    }
+
+    /** Paper {@code libraries:} are fetched from a remote Maven repo at runtime — a supply-chain hop. */
+    private void checkLibraries(AnalysisContext ctx, String file, List<String> libraries) {
+        if (libraries.isEmpty()) {
+            return;
+        }
+        ctx.add(Finding.builder("YML_REMOTE_LIBRARIES", Category.SUPPLY_CHAIN, Severity.LOW)
+                .title("Downloads libraries from a remote repository")
+                .description("The descriptor lists " + libraries.size() + " runtime library coordinate(s) in 'libraries:' ("
+                        + String.join(", ", libraries) + "). Paper resolves these from a remote Maven repository at "
+                        + "load time, so code that is not in this JAR is pulled in at runtime.")
+                .recommendation("Make sure each coordinate (and its version) is one you trust; pin versions.")
+                .location(file).evidence(String.join(", ", libraries)).scoreImpact(6).build());
+    }
+
+    private void checkDependencyCount(AnalysisContext ctx, String file, List<String> depend, List<String> softDepend) {
+        int total = depend.size() + softDepend.size();
+        if (total > 12) {
+            ctx.add(Finding.builder("YML_MANY_DEPENDENCIES", Category.PLUGIN_YML, Severity.INFO)
+                    .title("Unusually many declared dependencies")
+                    .description("The descriptor declares " + total + " hard/soft dependencies. A very large dependency "
+                            + "list can be a way to hook into many other plugins; usually it is just a feature-rich plugin.")
+                    .recommendation("Informational — review only if other findings are present.")
+                    .location(file).evidence(total + " dependencies").scoreImpact(0).build());
         }
     }
 

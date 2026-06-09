@@ -100,7 +100,8 @@ public class AnalysisEngine {
                 ctx.notes(),
                 Instant.now(),
                 duration,
-                ENGINE_VERSION);
+                ENGINE_VERSION,
+                null); // dynamic sandbox section is attached later by SandboxService, if enabled
     }
 
     /**

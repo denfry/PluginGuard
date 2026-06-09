@@ -54,6 +54,11 @@ class AnalysisEngineTest {
                 "YML_BACKDOOR_COMMAND",
                 "YML_WILDCARD_PERMISSION");
 
+        // The correlation engine should fuse the individual signals into combo verdicts.
+        assertThat(ruleIds(result)).contains(
+                "COMBO_REMOTE_CODE_LOADER",
+                "COMBO_CREDENTIAL_STEALER");
+
         assertThat(result.summaries().network()).contains("discord.com", "185.220.101.50");
         assertThat(result.obfuscationScore()).isGreaterThanOrEqualTo(50);
     }

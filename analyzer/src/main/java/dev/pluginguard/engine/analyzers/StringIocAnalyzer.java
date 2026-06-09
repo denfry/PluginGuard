@@ -10,6 +10,7 @@ import dev.pluginguard.engine.model.Severity;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -31,6 +32,27 @@ public class StringIocAnalyzer implements Analyzer {
     private static final Pattern BASE64_BLOB = Pattern.compile("[A-Za-z0-9+/]{120,}={0,2}");
     private static final Pattern WIN_PATH = Pattern.compile("[A-Za-z]:\\\\[^\"'\\s]{2,}");
 
+    /** {@code .minecraft} as a path segment — not the package prefix in {@code net.minecraft.*}. */
+    private static final Pattern MINECRAFT_DIR = Pattern.compile("(?<![\\w.])\\.minecraft\\b");
+
+    /**
+     * Addresses that are well-known infrastructure or documentation placeholders, not C2:
+     * public DNS resolvers (Google, Cloudflare, Quad9, Level3) and the RFC 5737 example ranges
+     * plus the classic {@code 1.2.3.4} placeholder seen in default configs.
+     */
+    private static final Set<String> WELL_KNOWN_IPS = Set.of(
+            "8.8.8.8", "8.8.4.4", "1.1.1.1", "1.0.0.1", "9.9.9.9", "149.112.112.112",
+            "4.2.2.2", "1.2.3.4");
+
+    /**
+     * Domains of well-known piracy / "nulled plugin" distribution sites. Their presence inside a
+     * JAR almost always means the file was re-packed and watermarked by the leak site — i.e. the
+     * binary is not the developer's official build.
+     */
+    private static final List<String> NULLED_SITE_MARKERS = List.of(
+            "black-minecraft.com", "blackspigot.com", "spigotunlocked", "directleaks",
+            "nulledbuilds", "leakmania", "mc-leaks", "mcleaks.cc");
+
     private static final Set<String> TEXT_EXTENSIONS = Set.of(
             ".yml", ".yaml", ".json", ".txt", ".properties", ".conf", ".cfg", ".ini",
             ".csv", ".md", ".sql", ".js", ".html", ".xml", ".toml", ".env");
@@ -51,14 +73,14 @@ public class StringIocAnalyzer implements Analyzer {
         // Class constant-pool strings.
         for (ClassScan scan : ctx.classScans()) {
             for (String s : scan.stringConstants()) {
-                base64Count += scanUnit(ctx, seen, scan.dottedName(), s);
+                base64Count += scanUnit(ctx, seen, scan.displayName(), s);
             }
         }
 
         // Text resources.
         for (ResourceFile res : ctx.jar().resources()) {
             if (isTextResource(res.name())) {
-                base64Count += scanUnit(ctx, seen, res.name(), res.text());
+                base64Count += scanUnit(ctx, seen, res.displayName(), res.text());
             }
         }
 
@@ -109,8 +131,11 @@ public class StringIocAnalyzer implements Analyzer {
         Matcher im = IPV4.matcher(text);
         while (im.find()) {
             String ip = im.group();
-            if (isValidPublicIp(im)) {
-                ctx.addNetworkIndicator(ip);
+            if (!isValidPublicIp(im) || isVersionLikeContext(text, im)) {
+                continue;
+            }
+            ctx.addNetworkIndicator(ip);
+            if (!WELL_KNOWN_IPS.contains(ip)) {
                 emit(ctx, seen, Finding.builder("IOC_HARDCODED_IP", Category.NETWORK, Severity.MEDIUM)
                         .title("Hard-coded public IP address")
                         .description("A literal public IP address (" + ip + ") is embedded in the code. Hard-coded IPs "
@@ -137,14 +162,29 @@ public class StringIocAnalyzer implements Analyzer {
                         + "was found.",
                 "Strong indicator of an account/session stealer — do not install without thorough review.");
 
-        // Sensitive local directories.
+        // Sensitive local directories. The .minecraft marker is a path-aware regex so the
+        // net.minecraft.* package prefix (ubiquitous in NMS code) does not trigger it.
+        List<String> sensitiveMarkers = new ArrayList<>(List.of("appdata", "%appdata%"));
+        if (MINECRAFT_DIR.matcher(lower).find()) {
+            sensitiveMarkers.add(".minecraft");
+        }
         scanMarkers(ctx, seen, source, lower,
-                List.of(".minecraft", "appdata", "%appdata%"),
+                sensitiveMarkers,
                 "IOC_SENSITIVE_PATH", Category.FILESYSTEM, Severity.MEDIUM, 10,
                 "Reference to a sensitive local directory",
                 "The code references a sensitive user directory (.minecraft / AppData). Plugins normally only touch "
                         + "their own folder under plugins/.",
                 "Investigate why the plugin reaches outside the server directory.");
+
+        // Markers of piracy ("nulled") distribution sites — the binary was re-packed by a third party.
+        scanMarkers(ctx, seen, source, lower,
+                NULLED_SITE_MARKERS,
+                "IOC_NULLED_DISTRIBUTION", Category.PROVENANCE, Severity.HIGH, 30,
+                "Distributed through a piracy (nulled) site",
+                "The file contains a marker of a known piracy/leak site. Such sites re-pack and watermark the "
+                        + "JARs they distribute, so this binary was modified by a third party and does not match "
+                        + "the developer's official build — injected code cannot be ruled out.",
+                "Do not install this copy. Get the plugin from the developer's official distribution channel.");
 
         // Filesystem summary: Windows paths and plugin-relative paths.
         Matcher wp = WIN_PATH.matcher(text);
@@ -194,6 +234,21 @@ public class StringIocAnalyzer implements Analyzer {
             return;
         }
         ctx.add(finding);
+    }
+
+    /**
+     * Filters dotted-number sequences that match the IPv4 shape but are not addresses: a segment
+     * of a longer dotted run (e.g. the {@code 9.9.9.9} inside the config pattern
+     * {@code "9.9.9.9.*"}) or a version inside a browser user-agent (e.g. {@code rv:1.9.2.2}).
+     */
+    private boolean isVersionLikeContext(String text, Matcher m) {
+        if (m.start() > 0 && text.charAt(m.start() - 1) == '.') {
+            return true;
+        }
+        if (m.end() < text.length() && text.charAt(m.end()) == '.') {
+            return true;
+        }
+        return m.start() >= 3 && text.regionMatches(true, m.start() - 3, "rv:", 0, 3);
     }
 
     private boolean isValidPublicIp(Matcher m) {

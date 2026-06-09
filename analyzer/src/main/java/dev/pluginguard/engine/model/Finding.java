@@ -1,5 +1,6 @@
 package dev.pluginguard.engine.model;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -15,6 +16,10 @@ import java.util.Objects;
  * @param location       where it was found (class / method / resource path); may be {@code null}
  * @param evidence       the concrete matched value (URL, call, string); may be {@code null}
  * @param scoreImpact    points to deduct from the 100-point start (positive magnitude; 0 for INFO)
+ * @param nestedPath     jar-chain the finding came from for nested archives
+ *                       (e.g. {@code bundled/lib.jar!/}); {@code null} for the top-level JAR
+ * @param relatedRuleIds for correlation (COMBO) findings, the rule ids whose combination raised this
+ *                       finding; empty for ordinary findings
  */
 public record Finding(
         String ruleId,
@@ -25,13 +30,16 @@ public record Finding(
         String recommendation,
         String location,
         String evidence,
-        int scoreImpact) {
+        int scoreImpact,
+        String nestedPath,
+        List<String> relatedRuleIds) {
 
     public Finding {
         Objects.requireNonNull(ruleId, "ruleId");
         Objects.requireNonNull(category, "category");
         Objects.requireNonNull(severity, "severity");
         Objects.requireNonNull(title, "title");
+        relatedRuleIds = relatedRuleIds == null ? List.of() : List.copyOf(relatedRuleIds);
     }
 
     public static Builder builder(String ruleId, Category category, Severity severity) {
@@ -49,6 +57,8 @@ public record Finding(
         private String location;
         private String evidence;
         private int scoreImpact;
+        private String nestedPath;
+        private List<String> relatedRuleIds = List.of();
 
         private Builder(String ruleId, Category category, Severity severity) {
             this.ruleId = ruleId;
@@ -62,10 +72,12 @@ public record Finding(
         public Builder location(String v) { this.location = v; return this; }
         public Builder evidence(String v) { this.evidence = v; return this; }
         public Builder scoreImpact(int v) { this.scoreImpact = v; return this; }
+        public Builder nestedPath(String v) { this.nestedPath = v; return this; }
+        public Builder relatedRuleIds(List<String> v) { this.relatedRuleIds = v; return this; }
 
         public Finding build() {
             return new Finding(ruleId, category, severity, title, description,
-                    recommendation, location, evidence, scoreImpact);
+                    recommendation, location, evidence, scoreImpact, nestedPath, relatedRuleIds);
         }
     }
 }

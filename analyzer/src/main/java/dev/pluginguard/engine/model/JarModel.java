@@ -16,6 +16,8 @@ import java.util.Optional;
  * @param resources   non-class entries with retained bytes
  * @param nestedJars  names of nested {@code .jar} entries (not recursively analyzed in this version)
  * @param guardNotes  notes about any zip-bomb / resource guard that was triggered
+ * @param zipAnomalies notes about central-directory/stream desync — entries the JVM would load that a
+ *                     front-to-back read cannot see, or vice versa (a tampering / hiding signal)
  */
 public record JarModel(
         String fileName,
@@ -26,11 +28,15 @@ public record JarModel(
         List<ClassFile> classes,
         List<ResourceFile> resources,
         List<String> nestedJars,
-        List<String> guardNotes) {
+        List<String> guardNotes,
+        List<String> zipAnomalies) {
 
-    /** Finds a resource by exact entry path. */
+    /** Finds a resource by exact entry path, preferring a top-level entry over a nested one. */
     public Optional<ResourceFile> resource(String name) {
-        return resources.stream().filter(r -> r.name().equals(name)).findFirst();
+        return resources.stream()
+                .filter(r -> r.name().equals(name) && !r.nested())
+                .findFirst()
+                .or(() -> resources.stream().filter(r -> r.name().equals(name)).findFirst());
     }
 
     /** Total uncompressed bytes across all entries. */

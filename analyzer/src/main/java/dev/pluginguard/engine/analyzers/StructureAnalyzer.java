@@ -82,21 +82,35 @@ public class StructureAnalyzer implements Analyzer {
             }
         }
 
-        // Nested JARs (shaded libs are common, but they are not recursively analyzed in this version).
+        // Nested JARs (shaded libs are common). Their contents are unpacked and analyzed recursively
+        // by the JarLoader, so any findings inside them are attributed with the jar-chain path.
         for (String nested : jar.nestedJars()) {
-            ctx.add(Finding.builder("STRUCTURE_NESTED_JAR", Category.STRUCTURE, Severity.LOW)
+            ctx.add(Finding.builder("STRUCTURE_NESTED_JAR", Category.STRUCTURE, Severity.INFO)
                     .title("Nested JAR found")
                     .description("The archive bundles another JAR ('" + nested + "'). This is common for shaded "
-                            + "libraries, but its contents are not deeply analyzed in this version.")
-                    .recommendation("If you don't recognise the bundled library, review it separately.")
+                            + "libraries; its classes were unpacked and analyzed recursively, and any findings inside "
+                            + "it are labelled with the nested path.")
+                    .recommendation("If you don't recognise the bundled library, review its findings below.")
                     .location(nested)
                     .evidence(nested)
-                    .scoreImpact(5)
+                    .scoreImpact(0)
                     .build());
         }
 
         // Java-agent manifest capability.
         jar.resource("META-INF/MANIFEST.MF").ifPresent(mf -> checkManifest(ctx, mf));
+
+        // Central-directory / stream desync: entries hidden from one view or the other.
+        for (String anomaly : jar.zipAnomalies()) {
+            ctx.add(Finding.builder("STRUCTURE_ZIP_ANOMALY", Category.STRUCTURE, Severity.HIGH)
+                    .title("ZIP structure is inconsistent (hidden entries)")
+                    .description(anomaly + " A mismatch between the ZIP central directory and the actual stream is a "
+                            + "deliberate trick to hide code from inspection tools while the server still loads it.")
+                    .recommendation("Treat as hostile. A legitimate plugin's archive is internally consistent.")
+                    .evidence(anomaly.length() <= 160 ? anomaly : anomaly.substring(0, 157) + "...")
+                    .scoreImpact(30)
+                    .build());
+        }
 
         // Zip-bomb signals surfaced by the loader's guards.
         for (String note : jar.guardNotes()) {
@@ -131,6 +145,22 @@ public class StructureAnalyzer implements Analyzer {
                         .location("META-INF/MANIFEST.MF")
                         .evidence(key + ": " + value)
                         .scoreImpact(25)
+                        .build());
+            }
+            if (key.equals("class-path") && !value.isBlank()) {
+                boolean external = value.contains("http://") || value.contains("https://")
+                        || value.contains("..") || value.contains("/") || value.contains("\\");
+                ctx.add(Finding.builder("STRUCTURE_MANIFEST_CLASSPATH",
+                                Category.SUPPLY_CHAIN, external ? Severity.MEDIUM : Severity.LOW)
+                        .title("Manifest declares an external Class-Path")
+                        .description("The manifest sets 'Class-Path: " + value + "'. This makes the JVM load classes "
+                                + "from other locations on disk at runtime" + (external
+                                ? ", and the entries point outside the JAR — code outside this file would run."
+                                : ".") + " Plugin classloading is normally handled by the server, not the manifest.")
+                        .recommendation("Confirm why the plugin pulls classes in via the manifest Class-Path.")
+                        .location("META-INF/MANIFEST.MF")
+                        .evidence("Class-Path: " + value)
+                        .scoreImpact(external ? 14 : 6)
                         .build());
             }
         }

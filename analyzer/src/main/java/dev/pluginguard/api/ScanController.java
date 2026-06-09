@@ -3,6 +3,7 @@ package dev.pluginguard.api;
 import dev.pluginguard.engine.AnalysisEngine;
 import dev.pluginguard.engine.AnalysisException;
 import dev.pluginguard.engine.model.ScanResult;
+import dev.pluginguard.engine.sandbox.SandboxService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -26,10 +27,12 @@ public class ScanController {
 
     private final AnalysisEngine engine;
     private final ScanStore store;
+    private final SandboxService sandbox;
 
-    public ScanController(AnalysisEngine engine, ScanStore store) {
+    public ScanController(AnalysisEngine engine, ScanStore store, SandboxService sandbox) {
         this.engine = engine;
         this.store = store;
+        this.sandbox = sandbox;
     }
 
     @GetMapping("/health")
@@ -57,6 +60,9 @@ public class ScanController {
 
         String id = UUID.randomUUID().toString();
         ScanResult result = engine.analyze(id, fileName, data);
+        // Attach the (optional) dynamic sandbox section and, if enabled, launch the async run.
+        // The static report is returned immediately; GET /api/scan/{id} reflects the sandbox status.
+        result = sandbox.attach(result, data);
         store.put(result);
         return ResponseEntity.ok(result);
     }

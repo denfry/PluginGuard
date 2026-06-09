@@ -23,6 +23,33 @@ pluginguard:
     max-entries: 50000
     max-compression-ratio: 200                 # uncompressed/compressed per entry
     max-nested-jar-depth: 2
+  supply-chain:
+    # Phase 2 supply-chain & reputation. OFF by default — these reach the network.
+    cve-enabled: false                         # query OSV.dev for CVEs in bundled dependencies
+    reputation-enabled: false                  # match jar/nested-jar SHA-256 against reputation lists
+    offline: false                             # hard kill-switch: no outbound requests (cache only)
+    osv-api-url: "https://api.osv.dev/v1/query"
+    cache-dir: ""                              # empty → <java.io.tmpdir>/pluginguard-cache
+    cache-ttl-hours: 168                       # 7 days
+    timeout-ms: 4000
+    retries: 1
+    known-malicious-source: ""                 # local file path or http(s) URL (one SHA-256 per line)
+    known-good-source: ""                      # local file path or http(s) URL (one SHA-256 per line)
+  sandbox:
+    # Phase 3 dynamic sandbox. OFF by default — it actually EXECUTES the uploaded plugin inside a
+    # hardened, non-root, network-isolated Docker container. The static analyzer never runs the jar.
+    enabled: false
+    runner: "docker"
+    docker-path: "docker"
+    image: "eclipse-temurin:21-jre"
+    runtime-jar-path: ""                       # host path to the built sandbox-runtime agent jar
+    work-dir: ""                               # empty → <java.io.tmpdir>/pluginguard-sandbox
+    timeout-seconds: 20
+    memory-mb: 256
+    cpus: "1.0"
+    pids-limit: 128
+    network: "none"                            # full egress isolation (attempts are logged, not routed)
+    max-behavior-events: 500
 
 logging:
   level:

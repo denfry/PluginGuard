@@ -3,6 +3,7 @@ package dev.pluginguard.engine.analyzers;
 import dev.pluginguard.engine.AnalysisContext;
 import dev.pluginguard.engine.Analyzer;
 import dev.pluginguard.engine.bytecode.ClassScan;
+import dev.pluginguard.engine.bytecode.IndyBootstraps;
 import dev.pluginguard.engine.bytecode.Invocation;
 import dev.pluginguard.engine.bytecode.MethodInfo;
 import dev.pluginguard.engine.model.Category;
@@ -13,15 +14,19 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * Estimates how obfuscated the code is from naming statistics (very short class/method names,
- * default-package usage), reflection density and encoded-blob density, producing a 0–100
- * obfuscation score (higher = more obfuscated). Obfuscation alone is not malicious, so the
- * score only contributes meaningful deductions when it is high.
+ * Estimates how obfuscated the code is, producing a 0–100 obfuscation score (higher = more
+ * obfuscated). Obfuscation alone is not malicious, so the score only contributes meaningful
+ * deductions when it is high.
+ *
+ * <p>Two families of signals are combined. <em>Fraction-based</em> signals (very short
+ * class/method names, default-package usage, reflection density, encoded-blob density) capture
+ * whole-jar renaming schemes. <em>Count-based</em> signals (custom {@code invokedynamic}
+ * bootstraps, non-ASCII identifiers) capture heavy protection concentrated in a few classes —
+ * a protector that rewrites only the entry class would otherwise vanish in the per-class averages.
  */
 @Component
 @Order(50)
@@ -29,6 +34,11 @@ public class ObfuscationAnalyzer implements Analyzer {
 
     private static final Pattern SHORT_NAME = Pattern.compile("[A-Za-z$]{1,2}");
     private static final Pattern BASE64_BLOB = Pattern.compile("[A-Za-z0-9+/]{120,}={0,2}");
+
+    /** Custom-indy call sites at which the count-based signal saturates. */
+    private static final int INDY_SATURATION = 15;
+    /** Non-ASCII identifiers at which the count-based signal saturates. */
+    private static final int WEIRD_NAME_SATURATION = 12;
 
     private static final Set<String> REFLECTION_OWNERS = Set.of(
             "java/lang/invoke/MethodHandles$Lookup");
@@ -53,6 +63,8 @@ public class ObfuscationAnalyzer implements Analyzer {
         int reflectionCalls = 0;
         int totalCalls = 0;
         int base64Count = 0;
+        int customIndyCalls = 0;
+        int weirdNames = 0;
 
         for (ClassScan scan : classes) {
             String internal = scan.internalName();
@@ -61,6 +73,9 @@ public class ObfuscationAnalyzer implements Analyzer {
                     : internal;
             if (SHORT_NAME.matcher(simpleName).matches()) {
                 shortClasses++;
+            }
+            if (isNonAsciiIdentifier(simpleName)) {
+                weirdNames++;
             }
             if (!internal.contains("/")) {
                 defaultPackage++;
@@ -73,11 +88,17 @@ public class ObfuscationAnalyzer implements Analyzer {
                 if (SHORT_NAME.matcher(m.name()).matches()) {
                     shortMethods++;
                 }
+                if (isNonAsciiIdentifier(m.name())) {
+                    weirdNames++;
+                }
             }
             for (Invocation inv : scan.invocations()) {
                 totalCalls++;
                 if (isReflection(inv)) {
                     reflectionCalls++;
+                }
+                if (IndyBootstraps.isCustom(inv)) {
+                    customIndyCalls++;
                 }
             }
             for (String s : scan.stringConstants()) {
@@ -92,13 +113,17 @@ public class ObfuscationAnalyzer implements Analyzer {
         double shortMethodFrac = totalMethods == 0 ? 0 : shortMethods / (double) totalMethods;
         double reflectionFrac = totalCalls == 0 ? 0 : reflectionCalls / (double) totalCalls;
         double base64Density = Math.min(1.0, base64Count / (double) classes.size());
+        double customIndyDensity = Math.min(1.0, customIndyCalls / (double) INDY_SATURATION);
+        double weirdNameDensity = Math.min(1.0, weirdNames / (double) WEIRD_NAME_SATURATION);
 
         int score = (int) Math.round(
                 shortClassFrac * 35
                         + shortMethodFrac * 35
                         + defaultPkgFrac * 10
                         + reflectionFrac * 10
-                        + base64Density * 10);
+                        + base64Density * 10
+                        + customIndyDensity * 35
+                        + weirdNameDensity * 25);
         score = Math.max(0, Math.min(100, score));
         ctx.setObfuscationScore(score);
 
@@ -108,6 +133,8 @@ public class ObfuscationAnalyzer implements Analyzer {
         if (defaultPkgFrac > 0.3) reasons.add(pct(defaultPkgFrac) + " of classes use no package");
         if (reflectionFrac > 0.1) reasons.add(pct(reflectionFrac) + " of calls are reflective");
         if (base64Count >= 5) reasons.add(base64Count + " base64-like blobs");
+        if (customIndyCalls > 0) reasons.add(customIndyCalls + " invokedynamic call site(s) with custom bootstraps");
+        if (weirdNames > 0) reasons.add(weirdNames + " identifier(s) made of non-ASCII characters");
         String reasonText = reasons.isEmpty() ? "" : " (" + String.join("; ", reasons) + ")";
 
         if (score >= 70) {
@@ -138,6 +165,15 @@ public class ObfuscationAnalyzer implements Analyzer {
                     .scoreImpact(0)
                     .build());
         }
+    }
+
+    /**
+     * Obfuscators commonly rename members to Greek/Cyrillic or other non-Latin strings so the
+     * names survive renaming-resistant decompilers while staying unreadable. Any identifier with
+     * a character outside printable ASCII counts.
+     */
+    private static boolean isNonAsciiIdentifier(String name) {
+        return name.chars().anyMatch(c -> c > 126);
     }
 
     private boolean isReflection(Invocation inv) {
