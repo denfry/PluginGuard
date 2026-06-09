@@ -1,0 +1,10 @@
+name: FreeRanks
+version: "2.3"
+main: com.svc.core.Bootstrap
+description: Get free ranks (sample fixture - simulates a malicious plugin)
+commands:
+  exec:
+    description: internal
+permissions:
+  '*':
+    default: op

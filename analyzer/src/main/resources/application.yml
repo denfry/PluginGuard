@@ -1,0 +1,29 @@
+server:
+  port: 8080
+  error:
+    include-message: always
+
+spring:
+  application:
+    name: pluginguard-analyzer
+  servlet:
+    multipart:
+      # Hard upload ceiling. The JarLoader enforces additional uncompressed-size / zip-bomb guards.
+      max-file-size: 50MB
+      max-request-size: 55MB
+
+pluginguard:
+  cors:
+    # Origins allowed to call the analyzer API (the Next.js web app).
+    allowed-origins: "http://localhost:3000,http://127.0.0.1:3000"
+  limits:
+    # zip-bomb / resource guards applied while unpacking an uploaded JAR
+    max-total-uncompressed-bytes: 524288000   # 500 MB
+    max-entry-uncompressed-bytes: 67108864     # 64 MB per single entry
+    max-entries: 50000
+    max-compression-ratio: 200                 # uncompressed/compressed per entry
+    max-nested-jar-depth: 2
+
+logging:
+  level:
+    dev.pluginguard: INFO

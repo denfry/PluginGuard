@@ -1,0 +1,14 @@
+name: BenignChat
+version: 1.2.0
+main: com.example.benignchat.BenignChatPlugin
+api-version: "1.21"
+author: example-dev
+description: A simple, well-behaved chat helper plugin (sample fixture).
+commands:
+  chathelp:
+    description: Shows chat help
+    usage: /chathelp
+permissions:
+  benignchat.use:
+    description: Allows using the chat helper
+    default: true
