@@ -122,3 +122,38 @@ export function TerminalIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function CopyIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="9" y="9" width="11" height="11" rx="2" />
+      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
+    </svg>
+  );
+}
+
+export function CheckIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M5 13l4 4L19 7" />
+    </svg>
+  );
+}
+
+export function ArrowRightIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 12h15" />
+      <path d="M13 6l6 6-6 6" />
+    </svg>
+  );
+}
+
+export function CrosshairIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <circle cx="12" cy="12" r="7" />
+      <path d="M12 2v4M12 18v4M2 12h4M18 12h4" />
+    </svg>
+  );
+}

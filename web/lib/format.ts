@@ -1,4 +1,4 @@
-import type { Category, Severity, Verdict } from "./types";
+import type { Category, SandboxStatus, Severity, Verdict } from "./types";
 
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -36,11 +36,11 @@ export function verdictColor(verdict: Verdict): string {
 
 /** Stroke colour (hex) for the score gauge. */
 export function scoreStroke(score: number): string {
-  if (score >= 90) return "#22C55E";
+  if (score >= 90) return "#A3E635";
   if (score >= 70) return "#84CC16";
-  if (score >= 40) return "#F59E0B";
-  if (score >= 25) return "#F97316";
-  return "#EF4444";
+  if (score >= 40) return "#FBBF24";
+  if (score >= 25) return "#FB923C";
+  return "#FB7185";
 }
 
 interface SeverityStyle {
@@ -56,28 +56,28 @@ export const SEVERITY_STYLE: Record<Severity, SeverityStyle> = {
     label: "Critical",
     text: "text-danger",
     bg: "bg-danger/10",
-    border: "border-danger/40",
+    border: "border-danger/30",
     dot: "bg-danger",
   },
   HIGH: {
     label: "High",
     text: "text-orange-400",
-    bg: "bg-orange-500/10",
-    border: "border-orange-500/40",
-    dot: "bg-orange-500",
+    bg: "bg-orange-400/10",
+    border: "border-orange-400/30",
+    dot: "bg-orange-400",
   },
   MEDIUM: {
     label: "Medium",
     text: "text-warning",
     bg: "bg-warning/10",
-    border: "border-warning/40",
+    border: "border-warning/30",
     dot: "bg-warning",
   },
   LOW: {
     label: "Low",
     text: "text-info",
     bg: "bg-info/10",
-    border: "border-info/40",
+    border: "border-info/30",
     dot: "bg-info",
   },
   INFO: {
@@ -99,9 +99,13 @@ export const CATEGORY_LABEL: Record<Category, string> = {
   FILESYSTEM: "Filesystem",
   CRYPTO: "Crypto",
   REFLECTION: "Reflection",
+  SCRIPTING: "Scripting",
+  DESERIALIZATION: "Deserialization",
   SYSTEM: "JVM control",
   OBFUSCATION: "Obfuscation",
   STRING_IOC: "Indicators",
+  SUPPLY_CHAIN: "Supply chain",
+  COMBO: "Correlated",
   PROVENANCE: "Provenance",
 };
 
@@ -112,3 +116,38 @@ export const SEVERITY_ORDER: Severity[] = [
   "LOW",
   "INFO",
 ];
+
+export const SANDBOX_STATUS_LABEL: Record<SandboxStatus, string> = {
+  DISABLED: "Disabled",
+  PENDING: "Queued",
+  RUNNING: "Running",
+  COMPLETED: "Completed",
+  SKIPPED: "Skipped",
+  UNAVAILABLE: "Unavailable",
+  FAILED: "Failed",
+};
+
+/** Human label for a dynamic behavior-event type (also used for dynamic findings). */
+export function behaviorTypeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    PROCESS_EXEC: "Process execution",
+    DEFINE_CLASS: "Runtime class definition",
+    LOAD_LIBRARY: "Native library load",
+    JNDI_LOOKUP: "JNDI lookup",
+    SECURITY_MANAGER: "Sandbox-escape attempt",
+    DESERIALIZE: "Deserialization",
+    NETWORK_CONNECT: "Outbound connection",
+    NETWORK_LISTEN: "Listening socket",
+    SCRIPTING: "Script evaluation",
+    DNS_RESOLVE: "DNS resolution",
+    FILE_WRITE: "Filesystem write",
+    FILE_READ: "Filesystem read",
+    REFLECTION: "Reflection",
+    SET_PROPERTY: "System property change",
+    ENV_READ: "Environment read",
+    OUTPUT: "Output",
+    LIFECYCLE: "Lifecycle",
+    ERROR: "Harness error",
+  };
+  return labels[type] ?? type;
+}

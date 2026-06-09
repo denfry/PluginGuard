@@ -1,45 +1,123 @@
 @import "tailwindcss";
 
 @theme {
-  --color-bg: #070a12;
-  --color-card: #111827;
-  --color-panel: #0c121e;
-  --color-line: #263244;
-  --color-primary: #22c55e;
-  --color-warning: #f59e0b;
-  --color-danger: #ef4444;
+  --color-bg: #0a0d0b;
+  --color-card: #0f130e;
+  --color-raised: #161c14;
+  --color-line: rgb(222 240 216 / 0.08);
+  --color-line-strong: rgb(222 240 216 / 0.18);
+  --color-primary: #a3e635;
+  --color-warning: #fbbf24;
+  --color-danger: #fb7185;
   --color-info: #38bdf8;
-  --color-ink: #f8fafc;
-  --color-muted: #94a3b8;
+  --color-ink: #e9efe5;
+  --color-muted: #8d9a8c;
+  --color-faint: #5d695d;
 
   --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-display: var(--font-space-grotesk), var(--font-geist-sans),
+    ui-sans-serif, system-ui, sans-serif;
 }
 
 html {
   scroll-behavior: smooth;
+  color-scheme: dark;
 }
 
 body {
   background-color: var(--color-bg);
   color: var(--color-ink);
-  background-image:
-    radial-gradient(60rem 40rem at 70% -10%, rgba(34, 197, 94, 0.08), transparent 60%),
-    radial-gradient(50rem 30rem at 0% 0%, rgba(56, 189, 248, 0.06), transparent 55%);
-  background-attachment: fixed;
 }
 
-/* Thin, subtle scrollbars to match the dashboard aesthetic. */
+/* Fixed decorative layer: faint phosphor glow + blueprint grid fading out below the fold. */
+.bg-decor {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image: radial-gradient(
+    55rem 32rem at 50% -8rem,
+    rgb(163 230 53 / 0.05),
+    transparent 70%
+  );
+}
+
+.bg-decor::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgb(222 240 216 / 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(222 240 216 / 0.028) 1px, transparent 1px);
+  background-size: 36px 36px;
+  mask-image: radial-gradient(
+    90rem 55rem at 50% -10rem,
+    black 30%,
+    transparent 75%
+  );
+}
+
+::selection {
+  background: var(--color-primary);
+  color: var(--color-bg);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Thin, subtle scrollbars to match the instrument aesthetic. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--color-line) transparent;
+  scrollbar-color: var(--color-line-strong) transparent;
 }
 
-@layer utilities {
-  .container-page {
-    width: 100%;
-    max-width: 72rem;
-    margin-inline: auto;
-    padding-inline: 1.25rem;
+@utility container-page {
+  width: 100%;
+  max-width: 72rem;
+  margin-inline: auto;
+  padding-inline: 1.25rem;
+}
+
+/* Uppercase monospace micro-label — the section voice of the whole UI. */
+@utility micro-label {
+  font-family: var(--font-mono);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+}
+
+/* Horizontal phosphor line sweeping the dropzone while a scan runs. */
+@keyframes scan-sweep {
+  0% {
+    top: 6%;
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    top: 94%;
+    opacity: 0.35;
+  }
+}
+
+.animate-scan {
+  position: absolute;
+  left: 0;
+  right: 0;
+  animation: scan-sweep 1.8s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  .animate-scan {
+    animation: none;
+    top: 50%;
   }
 }

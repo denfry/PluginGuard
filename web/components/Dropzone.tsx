@@ -1,18 +1,52 @@
 "use client";
 
-import { useRef, useState, type DragEvent } from "react";
+import { useEffect, useRef, useState, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, MAX_UPLOAD_BYTES, scanFile } from "@/lib/api";
 import { formatBytes } from "@/lib/format";
 import { UploadIcon, AlertIcon } from "./icons";
+
+/** Viewfinder corner bracket; spreads outward while dragging a file over the zone. */
+function Corner({ pos, out }: { pos: "tl" | "tr" | "bl" | "br"; out: boolean }) {
+  const edges = {
+    tl: "left-0 top-0 border-l-2 border-t-2 rounded-tl-md",
+    tr: "right-0 top-0 border-r-2 border-t-2 rounded-tr-md",
+    bl: "left-0 bottom-0 border-l-2 border-b-2 rounded-bl-md",
+    br: "right-0 bottom-0 border-r-2 border-b-2 rounded-br-md",
+  }[pos];
+  const shift = {
+    tl: "-translate-x-1.5 -translate-y-1.5",
+    tr: "translate-x-1.5 -translate-y-1.5",
+    bl: "-translate-x-1.5 translate-y-1.5",
+    br: "translate-x-1.5 translate-y-1.5",
+  }[pos];
+  return (
+    <span
+      aria-hidden
+      className={`pointer-events-none absolute z-10 h-5 w-5 border-primary transition-transform duration-300 ${edges} ${out ? shift : ""}`}
+    />
+  );
+}
 
 export function Dropzone() {
   const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState<string | null>(null);
+  const [fileLabel, setFileLabel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+
+  // Elapsed-time readout while the analyzer is working.
+  useEffect(() => {
+    if (!busy) return;
+    const started = performance.now();
+    const id = setInterval(
+      () => setElapsed((performance.now() - started) / 1000),
+      100,
+    );
+    return () => clearInterval(id);
+  }, [busy]);
 
   async function handleFile(file: File) {
     setError(null);
@@ -24,14 +58,15 @@ export function Dropzone() {
       setError(`File is too large (${formatBytes(file.size)}). Max is 50 MB.`);
       return;
     }
+    setElapsed(0);
     setBusy(true);
-    setStatus(`Analyzing ${file.name} (${formatBytes(file.size)})…`);
+    setFileLabel(`${file.name} · ${formatBytes(file.size)}`);
     try {
       const result = await scanFile(file);
       router.push(`/report/${result.id}`);
     } catch (e) {
       setBusy(false);
-      setStatus(null);
+      setFileLabel(null);
       setError(e instanceof ApiError ? e.message : "Analysis failed.");
     }
   }
@@ -45,76 +80,91 @@ export function Dropzone() {
 
   return (
     <div className="w-full">
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={onDrop}
-        onClick={() => !busy && inputRef.current?.click()}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if ((e.key === "Enter" || e.key === " ") && !busy)
-            inputRef.current?.click();
-        }}
-        className={`relative flex flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed px-6 py-14 text-center transition cursor-pointer
-          ${
-            dragging
-              ? "border-primary bg-primary/5"
-              : "border-line hover:border-primary/60 bg-card/40"
-          }
-          ${busy ? "pointer-events-none opacity-80" : ""}`}
-      >
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".jar,application/java-archive"
-          className="hidden"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void handleFile(file);
-            e.target.value = "";
-          }}
-        />
+      <div className="relative">
+        <Corner pos="tl" out={dragging} />
+        <Corner pos="tr" out={dragging} />
+        <Corner pos="bl" out={dragging} />
+        <Corner pos="br" out={dragging} />
 
-        {busy ? (
-          <>
-            <span className="h-10 w-10 rounded-full border-2 border-primary/30 border-t-primary animate-spin" />
-            <p className="text-ink font-medium">{status}</p>
-            <p className="text-sm text-muted">Running static analysis…</p>
-          </>
-        ) : (
-          <>
-            <span className="text-primary">
-              <UploadIcon className="h-10 w-10" />
-            </span>
-            <div>
-              <p className="text-lg font-medium text-ink">
-                Drag &amp; drop your{" "}
-                <span className="font-mono text-primary">.jar</span> plugin here
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
+          }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={onDrop}
+          onClick={() => !busy && inputRef.current?.click()}
+          role="button"
+          tabIndex={0}
+          aria-busy={busy}
+          onKeyDown={(e) => {
+            if ((e.key === "Enter" || e.key === " ") && !busy)
+              inputRef.current?.click();
+          }}
+          className={`relative flex min-h-[19rem] cursor-pointer flex-col items-center justify-center gap-4 overflow-hidden rounded-xl border border-dashed px-6 py-12 text-center transition-colors duration-200
+            ${
+              dragging
+                ? "border-primary/70 bg-primary/5"
+                : "border-line-strong bg-card hover:border-primary/40"
+            }
+            ${busy ? "pointer-events-none" : ""}`}
+        >
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".jar,application/java-archive"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void handleFile(file);
+              e.target.value = "";
+            }}
+          />
+
+          {busy ? (
+            <>
+              <span
+                aria-hidden
+                className="animate-scan h-px bg-gradient-to-r from-transparent via-primary to-transparent"
+              />
+              <span className="font-mono text-sm text-ink">{fileLabel}</span>
+              <p className="font-display text-lg font-medium">
+                Scanning bytecode…
               </p>
-              <p className="text-sm text-muted mt-1">
-                or click to choose a file · max 50 MB
-              </p>
-            </div>
-            <span className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-bg hover:bg-primary/90 transition">
-              Choose file
-            </span>
-          </>
-        )}
+              <span className="font-mono text-xs text-primary tabular-nums">
+                t+{elapsed.toFixed(1)}s
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="flex h-14 w-14 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary">
+                <UploadIcon className="h-6 w-6" />
+              </span>
+              <div>
+                <p className="font-display text-xl font-medium">
+                  Drop a <span className="text-primary">.jar</span> to scan it
+                </p>
+                <p className="mt-1.5 text-sm text-muted">
+                  or browse for a file · up to 50 MB
+                </p>
+              </div>
+              <span className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-bg transition hover:brightness-110">
+                Choose file
+              </span>
+            </>
+          )}
+        </div>
       </div>
 
       {error && (
-        <div className="mt-4 flex items-start gap-2 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">
+        <div className="mt-4 flex items-start gap-2.5 rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
           <AlertIcon className="h-5 w-5 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
-      <p className="mt-4 text-center text-xs text-muted">
-        Your file is analyzed statically and never executed.
+      <p className="micro-label mt-4 text-center text-faint">
+        analyzed in isolation — nothing runs on your server
       </p>
     </div>
   );

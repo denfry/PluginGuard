@@ -1,37 +1,50 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ShieldIcon } from "./icons";
 
+const LINKS: { href: string; label: string; desktopOnly?: boolean }[] = [
+  { href: "/", label: "Scanner" },
+  { href: "/demo", label: "Demo report" },
+  // The anchor link is hidden on phones to keep the bar on one line.
+  { href: "/#what-we-scan", label: "Pipeline", desktopOnly: true },
+];
+
 export function Navbar() {
+  const pathname = usePathname();
+
   return (
-    <header className="sticky top-0 z-30 border-b border-line/60 bg-bg/80 backdrop-blur">
-      <nav className="container-page flex h-16 items-center justify-between">
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <span className="text-primary transition-transform group-hover:scale-110">
-            <ShieldIcon className="h-6 w-6" />
+    <header className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-md">
+      <nav className="container-page flex h-14 items-center justify-between">
+        <Link href="/" className="group flex items-center gap-2.5">
+          <span className="text-primary transition-transform duration-200 group-hover:scale-110">
+            <ShieldIcon className="h-5 w-5" />
           </span>
-          <span className="text-lg font-semibold tracking-tight">
+          <span className="font-display text-base font-semibold tracking-tight">
             Plugin<span className="text-primary">Guard</span>
           </span>
         </Link>
-        <div className="flex items-center gap-1 text-sm">
-          <Link
-            href="/"
-            className="px-3 py-2 rounded-md text-muted hover:text-ink hover:bg-card/60 transition"
-          >
-            Scanner
-          </Link>
-          <Link
-            href="/demo"
-            className="px-3 py-2 rounded-md text-muted hover:text-ink hover:bg-card/60 transition"
-          >
-            Demo report
-          </Link>
-          <Link
-            href="/#what-we-scan"
-            className="px-3 py-2 rounded-md text-muted hover:text-ink hover:bg-card/60 transition"
-          >
-            What we scan
-          </Link>
+        <div className="flex items-center gap-1">
+          {LINKS.map((link) => {
+            const active =
+              link.href === "/#what-we-scan" ? false : pathname === link.href;
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`micro-label whitespace-nowrap rounded-md px-3 py-2 transition-colors ${
+                  link.desktopOnly ? "hidden sm:block" : ""
+                } ${
+                  active
+                    ? "text-primary"
+                    : "text-muted hover:bg-card hover:text-ink"
+                }`}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
         </div>
       </nav>
     </header>

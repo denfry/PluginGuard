@@ -1,36 +1,41 @@
-import type { ScanResult } from "@/lib/types";
-import { formatBytes, SEVERITY_ORDER } from "@/lib/format";
+"use client";
+
+import { useMemo, useState, type ReactNode } from "react";
+import type { ScanResult, Severity } from "@/lib/types";
+import { formatBytes, SEVERITY_ORDER, SEVERITY_STYLE } from "@/lib/format";
 import { ScoreGauge } from "./ScoreGauge";
-import { VerdictBadge, CountChip } from "./Badges";
+import { VerdictBadge, SeverityStat } from "./Badges";
 import { Panel } from "./Panel";
 import { FindingCard } from "./FindingCard";
+import { SandboxPanel } from "./SandboxPanel";
 import {
   AlertIcon,
   BoxIcon,
+  CheckIcon,
+  CopyIcon,
   EyeIcon,
   FileIcon,
   FolderIcon,
   NetworkIcon,
 } from "./icons";
-import type { ReactNode } from "react";
 
 function MetaRow({ label, value }: { label: string; value: ReactNode }) {
   return (
-    <div className="flex flex-col gap-0.5">
-      <dt className="text-xs uppercase tracking-wide text-muted">{label}</dt>
-      <dd className="text-sm text-ink break-all">{value}</dd>
+    <div className="flex flex-col gap-1">
+      <dt className="micro-label text-faint">{label}</dt>
+      <dd className="break-all text-sm text-ink">{value}</dd>
     </div>
   );
 }
 
 function TagList({ items, empty }: { items: string[]; empty: string }) {
-  if (!items.length) return <p className="text-sm text-muted">{empty}</p>;
+  if (!items.length) return <p className="text-sm text-faint">{empty}</p>;
   return (
     <div className="flex flex-wrap gap-1.5">
       {items.map((item) => (
         <span
           key={item}
-          className="rounded-md border border-line bg-bg/50 px-2 py-0.5 text-xs font-mono text-ink/80"
+          className="rounded border border-line bg-bg px-2 py-0.5 font-mono text-xs text-ink/80"
         >
           {item}
         </span>
@@ -39,12 +44,15 @@ function TagList({ items, empty }: { items: string[]; empty: string }) {
   );
 }
 
-function List({ items, empty }: { items: string[]; empty: string }) {
-  if (!items.length) return <p className="text-sm text-muted">{empty}</p>;
+function HairlineList({ items, empty }: { items: string[]; empty: string }) {
+  if (!items.length) return <p className="text-sm text-faint">{empty}</p>;
   return (
-    <ul className="space-y-1.5">
+    <ul className="divide-y divide-line">
       {items.map((item) => (
-        <li key={item} className="font-mono text-sm text-ink/80 break-all">
+        <li
+          key={item}
+          className="break-all py-1.5 font-mono text-sm text-ink/80 first:pt-0 last:pb-0"
+        >
           {item}
         </li>
       ))}
@@ -52,98 +60,196 @@ function List({ items, empty }: { items: string[]; empty: string }) {
   );
 }
 
+function CopyHashButton({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <button
+      onClick={() => {
+        navigator.clipboard
+          .writeText(value)
+          .then(() => {
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1500);
+          })
+          .catch(() => {});
+      }}
+      aria-label="Copy SHA-256"
+      className={`shrink-0 rounded-md border border-line p-1.5 transition-colors ${
+        copied ? "text-primary" : "text-faint hover:border-line-strong hover:text-ink"
+      }`}
+    >
+      {copied ? (
+        <CheckIcon className="h-3.5 w-3.5" />
+      ) : (
+        <CopyIcon className="h-3.5 w-3.5" />
+      )}
+    </button>
+  );
+}
+
+/** 24-segment instrument bar for the obfuscation score. */
+function SegmentBar({ value }: { value: number }) {
+  const segments = 24;
+  const filled = Math.round((Math.max(0, Math.min(100, value)) / 100) * segments);
+  return (
+    <div className="flex gap-[3px]">
+      {Array.from({ length: segments }, (_, i) => (
+        <span
+          key={i}
+          className={`h-3 flex-1 rounded-[1px] ${i < filled ? "bg-info" : "bg-line"}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+/** Compact labels so the five-stat row fits a phone screen. */
+const SHORT_LABEL: Record<Severity, string> = {
+  CRITICAL: "Crit",
+  HIGH: "High",
+  MEDIUM: "Med",
+  LOW: "Low",
+  INFO: "Info",
+};
+
+const FILTERS: { key: Severity; countKey: keyof ScanResult["counts"] }[] = [
+  { key: "CRITICAL", countKey: "critical" },
+  { key: "HIGH", countKey: "high" },
+  { key: "MEDIUM", countKey: "medium" },
+  { key: "LOW", countKey: "low" },
+  { key: "INFO", countKey: "info" },
+];
+
 export function ReportView({ report }: { report: ScanResult }) {
   const { counts, pluginInfo, summaries } = report;
+  const findings = report.findings;
 
-  const orderedFindings = report.findings;
-  const grouped = SEVERITY_ORDER.map((sev) => ({
-    sev,
-    items: orderedFindings.filter((f) => f.severity === sev),
-  })).filter((g) => g.items.length > 0);
+  const [filter, setFilter] = useState<Severity | "ALL">("ALL");
+  // Critical findings start expanded — they are why the user is here.
+  const [openSet, setOpenSet] = useState<ReadonlySet<number>>(
+    () =>
+      new Set(
+        findings.flatMap((f, i) => (f.severity === "CRITICAL" ? [i] : [])),
+      ),
+  );
+
+  const groups = useMemo(
+    () =>
+      SEVERITY_ORDER.map((sev) => ({
+        sev,
+        items: findings
+          .map((f, i) => ({ finding: f, index: i }))
+          .filter(({ finding }) => finding.severity === sev),
+      })).filter((g) => g.items.length > 0),
+    [findings],
+  );
+  const visibleGroups =
+    filter === "ALL" ? groups : groups.filter((g) => g.sev === filter);
+
+  function toggle(index: number) {
+    setOpenSet((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
+  }
+
+  function setAll(open: boolean) {
+    setOpenSet(
+      open
+        ? new Set(visibleGroups.flatMap((g) => g.items.map((it) => it.index)))
+        : new Set(),
+    );
+  }
 
   return (
-    <div className="container-page py-10 space-y-6">
-      {/* Header */}
-      <Panel className="overflow-hidden">
-        <div className="flex flex-col lg:flex-row gap-8 lg:items-center">
-          <div className="flex-1 space-y-4">
+    <div className="container-page space-y-6 py-10">
+      {/* Dossier header */}
+      <Panel>
+        <div className="flex flex-col gap-10 lg:flex-row lg:items-center">
+          <div className="min-w-0 flex-1 space-y-5">
             <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-2xl font-semibold break-all">
+              <h1 className="break-all font-display text-2xl font-semibold tracking-tight lg:text-3xl">
                 {report.fileName}
               </h1>
-              <VerdictBadge verdict={report.verdict} />
+              <VerdictBadge verdict={report.verdict} size="lg" />
             </div>
-            <dl className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <MetaRow label="Platform" value={report.platform} />
-              <MetaRow label="Size" value={formatBytes(report.sizeBytes)} />
+
+            <div className="flex min-w-0 items-center gap-2.5">
+              <span className="micro-label shrink-0 text-faint">sha-256</span>
+              <code className="truncate font-mono text-xs text-muted">
+                {report.sha256}
+              </code>
+              <CopyHashButton value={report.sha256} />
+            </div>
+
+            <dl className="grid grid-cols-2 gap-x-8 gap-y-4 sm:grid-cols-3">
+              <MetaRow label="platform" value={report.platform} />
+              <MetaRow label="size" value={formatBytes(report.sizeBytes)} />
+              <MetaRow label="mc api" value={report.mcApiVersion ?? "—"} />
               <MetaRow
-                label="MC API"
-                value={report.mcApiVersion ?? "—"}
-              />
-              <MetaRow
-                label="Main class"
+                label="main class"
                 value={
-                  <span className="font-mono">{report.mainClass ?? "—"}</span>
+                  <span className="font-mono text-xs">
+                    {report.mainClass ?? "—"}
+                  </span>
                 }
               />
               <MetaRow
-                label="Classes / methods"
-                value={`${summaries.classCount} / ${summaries.methodCount}`}
+                label="classes / methods"
+                value={
+                  <span className="tabular-nums">
+                    {summaries.classCount} / {summaries.methodCount}
+                  </span>
+                }
               />
               <MetaRow
-                label="Obfuscation"
-                value={`${report.obfuscationScore}/100`}
+                label="analyzed in"
+                value={<span className="tabular-nums">{report.durationMs} ms</span>}
               />
             </dl>
-            <MetaRow
-              label="SHA-256"
-              value={<span className="font-mono text-xs">{report.sha256}</span>}
-            />
           </div>
 
-          <div className="flex flex-col items-center gap-4 shrink-0">
+          <div className="flex shrink-0 flex-col items-center gap-5">
             <ScoreGauge score={report.score} />
-            <div className="grid grid-cols-4 gap-2 w-full max-w-xs">
-              <CountChip label="Crit" value={counts.critical} />
-              <CountChip label="High" value={counts.high} />
-              <CountChip label="Med" value={counts.medium} />
-              <CountChip label="Low" value={counts.low} />
+            <div className="flex flex-wrap items-start justify-center gap-x-6 gap-y-3">
+              {FILTERS.map(({ key, countKey }) => (
+                <SeverityStat
+                  key={key}
+                  label={SHORT_LABEL[key]}
+                  value={counts[countKey]}
+                  dotClass={SEVERITY_STYLE[key].dot}
+                />
+              ))}
             </div>
           </div>
         </div>
       </Panel>
 
       {/* Metadata + summaries */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Panel title="plugin.yml" icon={<FileIcon className="h-4 w-4" />}>
           {pluginInfo ? (
             <div className="space-y-4">
               <dl className="grid grid-cols-2 gap-3">
-                <MetaRow label="Name" value={pluginInfo.name ?? "—"} />
-                <MetaRow label="Version" value={pluginInfo.version ?? "—"} />
+                <MetaRow label="name" value={pluginInfo.name ?? "—"} />
+                <MetaRow label="version" value={pluginInfo.version ?? "—"} />
               </dl>
               <div className="space-y-1.5">
-                <p className="text-xs uppercase tracking-wide text-muted">
-                  Authors
-                </p>
+                <p className="micro-label text-faint">authors</p>
                 <TagList items={pluginInfo.authors} empty="None declared" />
               </div>
               <div className="space-y-1.5">
-                <p className="text-xs uppercase tracking-wide text-muted">
-                  Commands
-                </p>
+                <p className="micro-label text-faint">commands</p>
                 <TagList items={pluginInfo.commands} empty="None" />
               </div>
               <div className="space-y-1.5">
-                <p className="text-xs uppercase tracking-wide text-muted">
-                  Permissions
-                </p>
+                <p className="micro-label text-faint">permissions</p>
                 <TagList items={pluginInfo.permissions} empty="None" />
               </div>
               <div className="space-y-1.5">
-                <p className="text-xs uppercase tracking-wide text-muted">
-                  Dependencies
-                </p>
+                <p className="micro-label text-faint">dependencies</p>
                 <TagList
                   items={[...pluginInfo.depend, ...pluginInfo.softDepend]}
                   empty="None"
@@ -151,23 +257,26 @@ export function ReportView({ report }: { report: ScanResult }) {
               </div>
             </div>
           ) : (
-            <p className="text-sm text-muted">No plugin descriptor found.</p>
+            <p className="text-sm text-faint">No plugin descriptor found.</p>
           )}
         </Panel>
 
-        <Panel title="Network" icon={<NetworkIcon className="h-4 w-4" />}>
-          <List items={summaries.network} empty="No network indicators found." />
+        <Panel title="network" icon={<NetworkIcon className="h-4 w-4" />}>
+          <HairlineList
+            items={summaries.network}
+            empty="No network indicators found."
+          />
         </Panel>
 
-        <Panel title="Filesystem" icon={<FolderIcon className="h-4 w-4" />}>
-          <List
+        <Panel title="filesystem" icon={<FolderIcon className="h-4 w-4" />}>
+          <HairlineList
             items={summaries.filesystem}
             empty="No notable filesystem paths."
           />
         </Panel>
 
         <Panel
-          title="Dependencies"
+          title="dependencies"
           icon={<BoxIcon className="h-4 w-4" />}
           className="lg:col-span-2"
         >
@@ -176,7 +285,7 @@ export function ReportView({ report }: { report: ScanResult }) {
               {summaries.dependencies.map((d) => (
                 <span
                   key={`${d.name}@${d.version}`}
-                  className="rounded-md border border-line bg-bg/50 px-2 py-0.5 text-xs font-mono text-ink/80"
+                  className="rounded border border-line bg-bg px-2 py-0.5 font-mono text-xs text-ink/80"
                 >
                   {d.name}
                   {d.version ? `@${d.version}` : ""}
@@ -184,24 +293,23 @@ export function ReportView({ report }: { report: ScanResult }) {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted">No bundled dependencies detected.</p>
+            <p className="text-sm text-faint">
+              No bundled dependencies detected.
+            </p>
           )}
         </Panel>
 
-        <Panel title="Obfuscation" icon={<EyeIcon className="h-4 w-4" />}>
-          <div className="flex items-end gap-3">
-            <span className="text-3xl font-semibold tabular-nums">
+        <Panel title="obfuscation" icon={<EyeIcon className="h-4 w-4" />}>
+          <div className="flex items-end gap-2">
+            <span className="font-display text-3xl font-semibold tabular-nums">
               {report.obfuscationScore}
             </span>
-            <span className="text-muted text-sm mb-1">/ 100</span>
+            <span className="mb-1 text-sm text-faint">/ 100</span>
           </div>
-          <div className="mt-3 h-2 w-full rounded-full bg-line/60 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-info"
-              style={{ width: `${report.obfuscationScore}%` }}
-            />
+          <div className="mt-3">
+            <SegmentBar value={report.obfuscationScore} />
           </div>
-          <p className="mt-2 text-xs text-muted">
+          <p className="mt-2.5 text-xs text-muted">
             Higher means more obfuscated. Not malicious on its own.
           </p>
         </Panel>
@@ -209,39 +317,115 @@ export function ReportView({ report }: { report: ScanResult }) {
 
       {/* Findings */}
       <Panel
-        title={`Findings (${orderedFindings.length})`}
+        title={`findings — ${findings.length}`}
         icon={<AlertIcon className="h-4 w-4" />}
+        action={
+          findings.length > 0 ? (
+            <div className="micro-label flex items-center gap-2 text-faint">
+              <button
+                onClick={() => setAll(true)}
+                className="transition-colors hover:text-ink"
+              >
+                Expand all
+              </button>
+              <span aria-hidden>/</span>
+              <button
+                onClick={() => setAll(false)}
+                className="transition-colors hover:text-ink"
+              >
+                Collapse all
+              </button>
+            </div>
+          ) : undefined
+        }
       >
-        {orderedFindings.length === 0 ? (
-          <p className="text-sm text-muted">No findings.</p>
+        {findings.length === 0 ? (
+          <p className="text-sm text-faint">No findings.</p>
         ) : (
-          <div className="space-y-6">
-            {grouped.map((group) => (
-              <div key={group.sev} className="space-y-2">
-                <div className="space-y-2">
-                  {group.items.map((f, i) => (
-                    <FindingCard key={`${f.ruleId}-${i}`} finding={f} />
+          <div className="space-y-5">
+            {/* Severity filter */}
+            <div className="flex flex-wrap items-center gap-1.5">
+              <button
+                onClick={() => setFilter("ALL")}
+                className={`rounded-md border px-2.5 py-1 font-mono text-[11px] font-medium uppercase tracking-[0.1em] transition-colors ${
+                  filter === "ALL"
+                    ? "border-line-strong bg-raised text-ink"
+                    : "border-line text-muted hover:text-ink"
+                }`}
+              >
+                All <span className="tabular-nums">{findings.length}</span>
+              </button>
+              {FILTERS.filter(({ countKey }) => counts[countKey] > 0).map(
+                ({ key, countKey }) => {
+                  const s = SEVERITY_STYLE[key];
+                  const active = filter === key;
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => setFilter(active ? "ALL" : key)}
+                      className={`rounded-md border px-2.5 py-1 font-mono text-[11px] font-medium uppercase tracking-[0.1em] transition-colors ${
+                        active
+                          ? `${s.text} ${s.bg} ${s.border}`
+                          : "border-line text-muted hover:text-ink"
+                      }`}
+                    >
+                      {s.label}{" "}
+                      <span className="tabular-nums">{counts[countKey]}</span>
+                    </button>
+                  );
+                },
+              )}
+            </div>
+
+            {visibleGroups.map((group) => {
+              const s = SEVERITY_STYLE[group.sev];
+              return (
+                <div key={group.sev} className="space-y-2">
+                  <div className="flex items-center gap-3">
+                    <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
+                    <span className={`micro-label ${s.text}`}>
+                      {s.label} — {group.items.length}
+                    </span>
+                    <span className="h-px flex-1 bg-line" />
+                  </div>
+                  {group.items.map(({ finding, index }) => (
+                    <FindingCard
+                      key={`${finding.ruleId}-${index}`}
+                      finding={finding}
+                      open={openSet.has(index)}
+                      onToggle={() => toggle(index)}
+                    />
                   ))}
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </Panel>
 
+      {report.sandbox && <SandboxPanel report={report.sandbox} />}
+
       {report.notes.length > 0 && (
-        <Panel title="Engine notes">
-          <ul className="space-y-1 text-sm text-muted">
+        <Panel title="engine notes">
+          <ul className="space-y-1.5 text-sm text-muted">
             {report.notes.map((n, i) => (
-              <li key={i}>· {n}</li>
+              <li key={i} className="flex gap-2">
+                <span className="text-faint" aria-hidden>
+                  ·
+                </span>
+                {n}
+              </li>
             ))}
           </ul>
         </Panel>
       )}
 
-      <p className="text-center text-xs text-muted">
-        Analyzed in {report.durationMs} ms · engine v{report.engineVersion} ·
-        static analysis, the plugin was never executed.
+      <p className="micro-label text-center leading-5 text-faint">
+        analyzed in {report.durationMs} ms · engine v{report.engineVersion} ·{" "}
+        {report.sandbox &&
+        ["RUNNING", "COMPLETED", "FAILED"].includes(report.sandbox.status)
+          ? "static analysis + isolated sandbox run"
+          : "static analysis — the plugin was never executed"}
       </p>
     </div>
   );

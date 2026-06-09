@@ -2,84 +2,121 @@ import Link from "next/link";
 import { Dropzone } from "@/components/Dropzone";
 import { FeatureGrid } from "@/components/FeatureGrid";
 import { ScoreGauge } from "@/components/ScoreGauge";
-import { VerdictBadge, CountChip } from "@/components/Badges";
+import { VerdictBadge, SeverityPill } from "@/components/Badges";
+import { ArrowRightIcon } from "@/components/icons";
+import type { Severity } from "@/lib/types";
+
+// Mirrors the findings served by GET /api/demo so the teaser matches the real demo report.
+const SAMPLE_FINDINGS: { sev: Severity; title: string; loc: string }[] = [
+  {
+    sev: "HIGH",
+    title: "External Discord webhook",
+    loc: "WebhookClient#sendModerationLog",
+  },
+  {
+    sev: "MEDIUM",
+    title: "Reflection used to access server internals",
+    loc: "NMSResolver#resolve",
+  },
+  {
+    sev: "LOW",
+    title: "Makes HTTP requests",
+    loc: "UpdateChecker#check",
+  },
+];
 
 export default function Home() {
   return (
     <div className="container-page">
       {/* Hero + uploader */}
-      <section className="py-14 lg:py-20 grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
-        <div className="space-y-6">
-          <span className="inline-flex items-center gap-2 rounded-full border border-line bg-card/60 px-3 py-1 text-xs text-muted">
-            <span className="h-1.5 w-1.5 rounded-full bg-primary animate-pulse" />
-            Static analysis · bytecode · no sandbox
-          </span>
-          <h1 className="text-4xl lg:text-5xl font-semibold tracking-tight leading-[1.1]">
-            Deep security analysis for{" "}
-            <span className="text-primary">Minecraft plugins</span>
-          </h1>
-          <p className="text-lg text-muted max-w-xl">
-            Upload a <span className="font-mono text-ink">.jar</span> and see
-            what it really does before you install it on your server — dangerous
-            calls, network indicators, obfuscation and{" "}
-            <span className="font-mono text-ink">plugin.yml</span> validation.
+      <section className="grid items-center gap-12 py-16 lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:py-24">
+        <div className="space-y-7">
+          <p className="micro-label text-primary">
+            {"//"} minecraft plugin security
           </p>
-          <div className="flex flex-wrap gap-3 text-xs text-muted">
-            {["Bytecode", "Dependencies", "URLs", "Obfuscation", "YAML"].map(
-              (t) => (
-                <span
-                  key={t}
-                  className="rounded-md border border-line bg-card/40 px-2.5 py-1"
-                >
-                  {t}
-                </span>
-              ),
-            )}
-          </div>
+          <h1 className="font-display text-4xl font-semibold leading-[1.08] tracking-tight text-ink lg:text-[3.4rem]">
+            Know what a plugin <span className="text-primary">really does</span>{" "}
+            before you run it.
+          </h1>
+          <p className="max-w-xl text-lg leading-relaxed text-muted">
+            Upload a <span className="font-mono text-sm text-ink">.jar</span>{" "}
+            and get a forensic report — dangerous calls, network indicators,
+            obfuscation scoring and{" "}
+            <span className="font-mono text-sm text-ink">plugin.yml</span>{" "}
+            validation. Static analysis plus an isolated sandbox run.
+          </p>
+          <p className="micro-label leading-6 text-faint">
+            runtime.exec · webhooks · classloading · obfuscation · plugin.yml
+          </p>
         </div>
 
-        <div>
-          <Dropzone />
-        </div>
+        <Dropzone />
       </section>
 
-      {/* What we scan */}
-      <section id="what-we-scan" className="py-10 scroll-mt-20">
-        <div className="flex items-end justify-between mb-6">
-          <h2 className="text-2xl font-semibold">What we scan</h2>
-          <p className="text-sm text-muted hidden sm:block">
-            Six analysis passes over every uploaded JAR
+      {/* Analysis pipeline */}
+      <section id="what-we-scan" className="scroll-mt-20 py-12">
+        <div className="mb-8 flex items-end justify-between gap-6">
+          <div>
+            <p className="micro-label text-primary">{"//"} analysis pipeline</p>
+            <h2 className="mt-2 font-display text-3xl font-semibold tracking-tight">
+              Six passes over every JAR
+            </h2>
+          </div>
+          <p className="hidden max-w-xs text-right text-sm text-muted sm:block">
+            Each upload runs the full pipeline — no pass is skipped, no result
+            is cached from another file.
           </p>
         </div>
         <FeatureGrid />
       </section>
 
-      {/* Example result */}
-      <section className="py-10">
-        <div className="rounded-2xl border border-line bg-card/50 p-6 lg:p-8">
-          <div className="flex flex-col lg:flex-row gap-8 items-center">
-            <ScoreGauge score={78} />
-            <div className="flex-1 space-y-4 text-center lg:text-left">
-              <h2 className="text-xl font-semibold">Example result</h2>
-              <div className="flex justify-center lg:justify-start">
-                <VerdictBadge verdict="MEDIUM_RISK" />
+      {/* Example report teaser */}
+      <section className="py-12">
+        <div className="rounded-xl border border-line bg-card p-6 lg:p-10">
+          <div className="flex flex-col items-center gap-10 lg:flex-row lg:gap-14">
+            <div className="flex shrink-0 flex-col items-center gap-3">
+              <ScoreGauge score={78} />
+              <VerdictBadge verdict="MEDIUM_RISK" />
+            </div>
+
+            <div className="min-w-0 flex-1 space-y-5 text-center lg:text-left">
+              <div>
+                <p className="micro-label text-primary">
+                  {"//"} sample verdict
+                </p>
+                <h2 className="mt-2 font-display text-2xl font-semibold tracking-tight">
+                  Reports you can act on
+                </h2>
               </div>
-              <p className="text-muted max-w-lg">
-                A real report breaks the score down into findings grouped by
-                severity, with the exact class and method behind each one, plus
-                network, filesystem and dependency summaries.
+              <p className="mx-auto max-w-lg text-muted lg:mx-0">
+                Every finding names the exact class and method behind it, what
+                the risk is, and what to check — backed by network, filesystem
+                and dependency summaries.
               </p>
-              <div className="grid grid-cols-4 gap-2 max-w-sm mx-auto lg:mx-0">
-                <CountChip label="Crit" value={0} />
-                <CountChip label="High" value={1} />
-                <CountChip label="Med" value={1} />
-                <CountChip label="Low" value={3} />
+
+              <div className="divide-y divide-line overflow-hidden rounded-lg border border-line bg-bg text-left">
+                {SAMPLE_FINDINGS.map((f) => (
+                  <div
+                    key={f.title}
+                    className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5"
+                  >
+                    <SeverityPill severity={f.sev} />
+                    <span className="text-sm font-medium text-ink">
+                      {f.title}
+                    </span>
+                    <code className="ml-auto hidden font-mono text-[11px] text-faint sm:block">
+                      {f.loc}
+                    </code>
+                  </div>
+                ))}
               </div>
+
               <Link
                 href="/demo"
-                className="inline-flex rounded-lg border border-primary/40 bg-primary/10 px-4 py-2 text-sm font-medium text-primary hover:bg-primary/20 transition"
+                className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-bg transition hover:brightness-110"
               >
-                Open demo report →
+                Open the demo report
+                <ArrowRightIcon className="h-4 w-4" />
               </Link>
             </div>
           </div>

@@ -19,9 +19,13 @@ export type Category =
   | "FILESYSTEM"
   | "CRYPTO"
   | "REFLECTION"
+  | "SCRIPTING"
+  | "DESERIALIZATION"
   | "SYSTEM"
   | "OBFUSCATION"
   | "STRING_IOC"
+  | "SUPPLY_CHAIN"
+  | "COMBO"
   | "PROVENANCE";
 
 export interface Finding {
@@ -34,6 +38,8 @@ export interface Finding {
   location: string | null;
   evidence: string | null;
   scoreImpact: number;
+  nestedPath: string | null;
+  relatedRuleIds: string[];
 }
 
 export interface SeverityCounts {
@@ -72,6 +78,52 @@ export interface Summaries {
   methodCount: number;
 }
 
+export type SandboxStatus =
+  | "DISABLED"
+  | "PENDING"
+  | "RUNNING"
+  | "COMPLETED"
+  | "SKIPPED"
+  | "UNAVAILABLE"
+  | "FAILED";
+
+export type DynamicCorrelation = "CONFIRMS_STATIC" | "DYNAMIC_ONLY";
+
+export interface BehaviorEvent {
+  type: string;
+  target: string | null;
+  detail: string | null;
+  source: string | null;
+  blocked: boolean;
+}
+
+export interface DynamicFinding {
+  ruleId: string;
+  eventType: string;
+  severity: Severity;
+  title: string;
+  target: string | null;
+  blocked: boolean;
+  occurrences: number;
+  correlation: DynamicCorrelation;
+  description: string;
+  recommendation: string;
+}
+
+export interface SandboxReport {
+  status: SandboxStatus;
+  runner: string | null;
+  startedAt: string | null;
+  finishedAt: string | null;
+  durationMs: number;
+  worstSeverity: Severity | null;
+  behaviorEventCount: number;
+  dynamicFindings: DynamicFinding[];
+  behaviorEvents: BehaviorEvent[];
+  caveats: string[];
+  note: string | null;
+}
+
 export interface ScanResult {
   id: string;
   fileName: string;
@@ -91,4 +143,5 @@ export interface ScanResult {
   analyzedAt: string;
   durationMs: number;
   engineVersion: string;
+  sandbox: SandboxReport | null;
 }

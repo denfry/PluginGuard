@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 
@@ -10,6 +10,11 @@ const geistSans = Geist({
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
+
+const spaceGrotesk = Space_Grotesk({
+  variable: "--font-space-grotesk",
   subsets: ["latin"],
 });
 
@@ -27,18 +32,21 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
+        <div className="bg-decor" aria-hidden />
         <Navbar />
         <main className="flex-1">{children}</main>
-        <footer className="border-t border-line/60 mt-20">
-          <div className="container-page py-8 text-sm text-muted flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
-            <p>
+        <footer className="mt-24 border-t border-line">
+          <div className="container-page flex flex-col gap-2 py-6 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted">
               PluginGuard — risk-based static analysis. Not a guarantee of
               safety.
             </p>
-            <p className="font-mono text-xs">static-analysis · no sandbox</p>
+            <p className="micro-label text-faint">
+              static bytecode analysis · isolated sandbox
+            </p>
           </div>
         </footer>
       </body>
