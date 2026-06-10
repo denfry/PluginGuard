@@ -5,10 +5,8 @@ services:
     image: pluginguard-analyzer
     ports:
       - "8080:8080"
-    environment:
-      # Allow the web app (served from the host browser) to call the API.
-      # Spring relaxed binding: pluginguard.cors.allowed-origins -> PLUGINGUARD_CORS_ALLOWEDORIGINS
-      PLUGINGUARD_CORS_ALLOWEDORIGINS: "http://localhost:3000,http://127.0.0.1:3000"
+    # No CORS env needed: the browser never calls the analyzer directly — the web app
+    # proxies /api/* to it server-side over the compose network (see web build args).
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/health"]
       interval: 10s
@@ -19,8 +17,8 @@ services:
     build:
       context: ./web
       args:
-        # Baked into the client bundle: the URL the browser uses for the analyzer.
-        NEXT_PUBLIC_API_URL: "http://localhost:8080"
+        # Server-side proxy target for the Next rewrites — reachable on the compose network.
+        ANALYZER_URL: "http://analyzer:8080"
     image: pluginguard-web
     ports:
       - "3000:3000"

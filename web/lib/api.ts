@@ -1,7 +1,9 @@
 import type { ScanResult } from "./types";
 
-export const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+// Calls go to THIS app's own origin under /api/*; next.config.ts proxies them
+// (server-side) to the analyzer. Keeping the browser same-origin removes CORS and
+// mixed-content entirely, so there is no analyzer URL in the client bundle.
+export const API_URL = "";
 
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
@@ -27,7 +29,7 @@ export async function scanFile(file: File): Promise<ScanResult> {
     res = await fetch(`${API_URL}/api/scan`, { method: "POST", body: form });
   } catch {
     throw new ApiError(
-      "Could not reach the analyzer service. Is it running on " + API_URL + "?",
+      "Could not reach the analyzer service — it may be starting up. Please try again in a moment.",
     );
   }
   if (!res.ok) {

@@ -9,9 +9,11 @@ FROM node:22-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-# Baked into the client bundle — must be the URL the browser uses to reach the analyzer.
-ARG NEXT_PUBLIC_API_URL=http://localhost:8080
-ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+# The analyzer URL the Next server proxies /api/* to (see next.config.ts). Resolved into
+# the route manifest at build time, NOT exposed to the browser. On Render this is supplied
+# automatically as a build arg from the service's ANALYZER_URL environment variable.
+ARG ANALYZER_URL=http://localhost:8080
+ENV ANALYZER_URL=$ANALYZER_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 

@@ -61,11 +61,13 @@ analyzer/sandbox-runtime/   Plain Java + ASM — the JVM agent + mock Bukkit har
 sample-plugins/   Synthetic benign & malicious-looking plugins for demo and tests
 ```
 
-The browser uploads a `.jar` to the analyzer's `POST /api/scan`, which runs the static pipeline
-synchronously (it is fast) and returns a JSON report. The web app renders it and caches it by id; a
-direct visit re-fetches `GET /api/scan/{id}`. When the dynamic sandbox is enabled, the static report
-comes back immediately with a `sandbox` section in `PENDING`/`RUNNING`, and the page polls
-`GET /api/scan/{id}` until the asynchronous run reaches `COMPLETED`.
+The browser uploads a `.jar` to the web app's own `/api/scan`, which the Next server proxies to the
+analyzer's `POST /api/scan` (so the browser stays same-origin — no CORS, no mixed-content). The
+analyzer runs the static pipeline synchronously (it is fast) and returns a JSON report; the web app
+renders it and caches it by id, and a direct visit re-fetches `GET /api/scan/{id}`. When the dynamic
+sandbox is enabled, the static report comes back immediately with a `sandbox` section in
+`PENDING`/`RUNNING`, and the page polls `GET /api/scan/{id}` until the asynchronous run reaches
+`COMPLETED`.
 
 ---
 
@@ -86,7 +88,8 @@ npm run dev
 
 Open <http://localhost:3000>, drag in a `.jar`, or click **Demo report**.
 
-The web app reads the analyzer URL from `NEXT_PUBLIC_API_URL` (default `http://localhost:8080`).
+The web app proxies `/api/*` to the analyzer at `ANALYZER_URL` (default `http://localhost:8080`), so
+the browser only ever calls the web app's own origin — no CORS configuration needed.
 
 ### With Docker
 

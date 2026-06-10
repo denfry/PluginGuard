@@ -5,14 +5,23 @@
 #   2. Render Dashboard → New → Blueprint → select this repo. Render reads this file.
 #   3. Both services build from their Dockerfiles and get automatic HTTPS.
 #
-# Cross-service URLs (below) are pre-filled with Render's default hostnames
-# `https://<service-name>.onrender.com`. If either NAME is already taken globally,
-# Render appends a random suffix — open each service, copy its real URL from the
-# dashboard, update the two values, and redeploy (the web service must REBUILD,
-# because NEXT_PUBLIC_API_URL is baked into the client bundle at build time).
+# Topology: the browser only ever talks to the WEB service. The web app proxies /api/*
+# (server-side, via next.config.ts rewrites) to the analyzer's public URL — so there is
+# no CORS, no mixed-content, and no analyzer URL in the client bundle.
 #
-# Free-plan notes: 512 MB RAM / 0.1 CPU, services spin down after ~15 min idle and
-# take ~1 min to wake. Reports are in-memory and are lost on each spin-down.
+# The only cross-service value is the web service's `ANALYZER_URL`, pre-filled with the
+# analyzer's default hostname `https://pluginguard-analyzer.onrender.com`. If Render
+# appended a random suffix to the analyzer's name (only when the name is already taken
+# globally), open the analyzer service, copy its real URL, set it as `ANALYZER_URL` on the
+# web service, and redeploy the WEB service (the value is baked into the route manifest at
+# build time, so it needs a rebuild — not just a restart).
+#
+# The analyzer must stay PUBLIC: Render free services can send outbound private/public
+# requests but cannot RECEIVE private ones, so the web proxy reaches it over its public URL.
+#
+# Free-plan notes: 512 MB RAM / 0.1 CPU; services spin down after ~15 min idle and take
+# ~1 min (+ Spring Boot start) to wake — the first request after idle is slow. Reports are
+# in-memory and are lost on each spin-down.
 
 services:
   # --- Java static analyzer (Spring Boot 3.5, Java 21) -----------------------
@@ -26,10 +35,6 @@ services:
     healthCheckPath: /api/health
     autoDeploy: true
     envVars:
-      # Origin(s) of the web app allowed to call the API (comma-separated). The browser
-      # calls the analyzer directly, so this MUST be the web app's public origin.
-      - key: PLUGINGUARD_CORS_ALLOWEDORIGINS
-        value: https://pluginguard-web.onrender.com
       # Don't leak exception messages on the public API (overrides application.yml).
       - key: SERVER_ERROR_INCLUDE_MESSAGE
         value: never
@@ -44,8 +49,9 @@ services:
     dockerContext: ./web
     autoDeploy: true
     envVars:
-      # PUBLIC https URL of the analyzer — the browser fetches it directly.
-      # Render passes this as the Docker build ARG of the same name, so it is baked
-      # into the client bundle at BUILD time. Changing it requires a rebuild/redeploy.
-      - key: NEXT_PUBLIC_API_URL
+      # The analyzer's PUBLIC URL. The Next server proxies /api/* to it server-side, so the
+      # browser stays same-origin. Render passes this as the Docker build ARG of the same
+      # name; next.config.ts bakes it into the route manifest at build time, so changing it
+      # requires a rebuild/redeploy of the web service (not just a restart).
+      - key: ANALYZER_URL
         value: https://pluginguard-analyzer.onrender.com
