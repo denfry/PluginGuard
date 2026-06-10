@@ -26,6 +26,12 @@ pluginguard:
   # Report storage: `memory` (in-memory, ephemeral — lost on restart) or `jdbc` (PostgreSQL, durable).
   # Override with env PLUGINGUARD_PERSISTENCE. `jdbc` requires the spring.datasource.* values above.
   persistence: ${PLUGINGUARD_PERSISTENCE:memory}
+  rate-limit:
+    # Best-effort per-IP throttle on the public upload endpoint (POST /api/scan). Cheap reads
+    # (report polling, demo, health) are never limited. Tune/disable via env
+    # PLUGINGUARD_RATELIMIT_ENABLED / PLUGINGUARD_RATELIMIT_SCANSPERMINUTE.
+    enabled: true
+    scans-per-minute: 10
   cors:
     # Origins allowed to call the analyzer API (the Next.js web app).
     allowed-origins: "http://localhost:3000,http://127.0.0.1:3000"

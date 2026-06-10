@@ -35,8 +35,9 @@ Through the proxy, `GET https://<web>.onrender.com/api/health` should return `{"
 - By default reports live in memory (`ScanStore`, 500 max) and are **lost on every spin-down**, so a
   shared `/report/{id}` link breaks once the analyzer sleeps. Enable Postgres persistence (below) to
   keep them. The uploader always sees their own report (cached in `sessionStorage`).
-- A big/complex jar is CPU-heavy on 0.1 CPU. There is **no rate limiting** on the upload endpoint —
-  fine for a demo, add one before promoting it widely.
+- A big/complex jar is CPU-heavy on 0.1 CPU. `POST /api/scan` is **rate-limited per client IP**
+  (default 10/min — `PLUGINGUARD_RATELIMIT_SCANSPERMINUTE`; report polling and health are never
+  limited), but each scan is still heavy, so watch it under load.
 
 ### Keeping the services warm (the 15-min spin-down)
 
@@ -96,6 +97,7 @@ Better quotas and scale-to-zero, but needs a GCP billing card and two platforms.
 
 - **Persistence:** reports are in-memory by default; enable Postgres (see *Durable reports* above) so
   `/report/{id}` links survive restarts.
-- **Abuse protection:** rate-limit / size-limit the upload path.
+- **Abuse protection:** `POST /api/scan` is per-IP rate-limited (configurable); add a CDN/WAF or
+  stricter limits for heavier exposure.
 - **Optional layers:** the CVE, reputation and sandbox features stay off here; the sandbox in
   particular needs a Docker daemon and can't run on these free PaaS tiers.

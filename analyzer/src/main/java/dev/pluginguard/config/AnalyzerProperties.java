@@ -14,6 +14,7 @@ public class AnalyzerProperties {
     private Limits limits = new Limits();
     private SupplyChain supplyChain = new SupplyChain();
     private Sandbox sandbox = new Sandbox();
+    private RateLimit rateLimit = new RateLimit();
 
     public Cors getCors() { return cors; }
     public void setCors(Cors cors) { this.cors = cors; }
@@ -23,6 +24,8 @@ public class AnalyzerProperties {
     public void setSupplyChain(SupplyChain supplyChain) { this.supplyChain = supplyChain; }
     public Sandbox getSandbox() { return sandbox; }
     public void setSandbox(Sandbox sandbox) { this.sandbox = sandbox; }
+    public RateLimit getRateLimit() { return rateLimit; }
+    public void setRateLimit(RateLimit rateLimit) { this.rateLimit = rateLimit; }
 
     public static class Cors {
         /** Comma-separated list of origins allowed to call the API. */
@@ -168,5 +171,21 @@ public class AnalyzerProperties {
             }
             return Path.of(System.getProperty("java.io.tmpdir", "."), "pluginguard-sandbox");
         }
+    }
+
+    /**
+     * Best-effort per-client rate limiting for the public, CPU-heavy upload endpoint
+     * ({@code POST /api/scan}). Cheap reads (report polling, demo, health) are never limited.
+     * In-memory, per-IP, fixed one-minute windows — sized for a single free-tier instance.
+     */
+    public static class RateLimit {
+        private boolean enabled = true;
+        /** Max {@code POST /api/scan} requests allowed per client IP per minute. */
+        private int scansPerMinute = 10;
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean enabled) { this.enabled = enabled; }
+        public int getScansPerMinute() { return scansPerMinute; }
+        public void setScansPerMinute(int scansPerMinute) { this.scansPerMinute = scansPerMinute; }
     }
 }
