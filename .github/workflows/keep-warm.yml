@@ -1,0 +1,47 @@
+name: keep-warm
+
+# Keeps the Render free services from spinning down (they sleep after 15 min idle and take
+# ~1 min to wake). We deliberately DO NOT run 24/7: Render free grants 750 instance-hours
+# per MONTH per workspace, and two always-on services would burn ~1460 h and get suspended.
+# Instead we warm them only during a daily window:
+#   2 services x ~10 h/day x 30.4 days ≈ 608 h/month  (comfortably under 750, leaving
+#   headroom for real user traffic, which also wakes the services).
+#
+# Tune the window by editing the cron `8-17` below (these are UTC hours and do NOT shift
+# with DST). Keep  window_hours x 2 x 30.4  well under 750.
+#
+# Caveats: GitHub's scheduled runs are best-effort and can be delayed several minutes under
+# load, and scheduled workflows are auto-disabled after 60 days with no repo commits. For a
+# rock-solid pinger use an external uptime monitor (cron-job.org, UptimeRobot, ...) instead.
+
+on:
+  schedule:
+    - cron: "*/10 8-17 * * *"   # every 10 min, 08:00–17:59 UTC
+  workflow_dispatch: {}          # manual "Run workflow" button
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keep-warm
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Render services
+        # Override these in repo Settings → Secrets and variables → Actions → Variables if
+        # Render assigned a random suffix to a service name.
+        env:
+          WEB_URL: ${{ vars.WEB_URL || 'https://pluginguard-web.onrender.com' }}
+          ANALYZER_URL: ${{ vars.ANALYZER_URL || 'https://pluginguard-analyzer.onrender.com' }}
+        run: |
+          # Pinging the web /api/health also proxies through to the analyzer, so this warms
+          # both; we hit the analyzer directly too as a belt-and-suspenders.
+          for url in "$WEB_URL/api/health" "$ANALYZER_URL/api/health"; do
+            echo "Pinging $url"
+            code=$(curl -fsS -o /dev/null -w '%{http_code}' \
+              --max-time 90 --retry 4 --retry-delay 5 --retry-all-errors "$url" || echo "ERR")
+            echo "  -> $code"
+          done

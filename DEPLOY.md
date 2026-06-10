@@ -30,13 +30,29 @@ Through the proxy, `GET https://<web>.onrender.com/api/health` should return `{"
 
 **Free-tier caveats**
 - 512 MB / 0.1 CPU; services sleep after ~15 min idle and take ~1 min (+ Spring Boot startup) to
-  wake — the first request after idle is slow (the proxied call waits for the analyzer to spin up).
-  750 instance-hours/month/workspace.
+  wake. The `keep-warm` workflow (below) hides this during a daily window; outside it, the first
+  request is slow (the proxied call waits for the analyzer to spin up).
 - Reports live in memory (`ScanStore`, 500 max) and are **lost on every spin-down**, so a shared
   `/report/{id}` link breaks once the analyzer sleeps. The uploader still sees their own report
   (it's cached in `sessionStorage`).
 - A big/complex jar is CPU-heavy on 0.1 CPU. There is **no rate limiting** on the upload endpoint —
   fine for a demo, add one before promoting it widely.
+
+### Keeping the services warm (the 15-min spin-down)
+
+The repo ships [`.github/workflows/keep-warm.yml`](./.github/workflows/keep-warm.yml) — a scheduled
+GitHub Action that pings `/api/health` every 10 min during a daily window, so both services stay
+responsive when people actually use the app (one ping to the web warms the analyzer too, via the
+proxy). It deliberately does **not** run 24/7: Render free is **750 instance-hours/month per
+workspace**, and two always-on services would burn ~1460 h and get suspended. The default window
+(`08:00–17:59 UTC`, ~608 h/month) stays well under budget — widen/narrow the cron in that file, keeping
+`window_hours × 2 × 30.4` comfortably under 750.
+
+After the first push, enable it under the repo's **Actions** tab if prompted. If Render appended a
+suffix to a service name, set repo **Variables** `WEB_URL` / `ANALYZER_URL` (Settings → Secrets and
+variables → Actions). GitHub's scheduler is best-effort (runs can be delayed) and auto-disables after
+60 days with no commits; for a rock-solid pinger use an external uptime monitor (cron-job.org,
+UptimeRobot) pointed at `<web-url>/api/health` on the same window.
 
 ## Option B — Cloud Run (analyzer) + Vercel (web)
 
