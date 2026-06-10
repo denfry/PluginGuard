@@ -1,6 +1,9 @@
 server:
-  port: 8080
+  # Bind to the platform-injected PORT when present (e.g. Render/Cloud Run), else 8080 locally.
+  port: ${PORT:8080}
   error:
+    # Local dev surfaces exception messages; override to `never` in production (env
+    # SERVER_ERROR_INCLUDE_MESSAGE=never) so the public API doesn't leak internals.
     include-message: always
 
 spring:

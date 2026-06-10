@@ -1,0 +1,51 @@
+# Render Blueprint — deploys PluginGuard as two free Docker web services.
+#
+# Quick start:
+#   1. Push this repo to GitHub.
+#   2. Render Dashboard → New → Blueprint → select this repo. Render reads this file.
+#   3. Both services build from their Dockerfiles and get automatic HTTPS.
+#
+# Cross-service URLs (below) are pre-filled with Render's default hostnames
+# `https://<service-name>.onrender.com`. If either NAME is already taken globally,
+# Render appends a random suffix — open each service, copy its real URL from the
+# dashboard, update the two values, and redeploy (the web service must REBUILD,
+# because NEXT_PUBLIC_API_URL is baked into the client bundle at build time).
+#
+# Free-plan notes: 512 MB RAM / 0.1 CPU, services spin down after ~15 min idle and
+# take ~1 min to wake. Reports are in-memory and are lost on each spin-down.
+
+services:
+  # --- Java static analyzer (Spring Boot 3.5, Java 21) -----------------------
+  - name: pluginguard-analyzer
+    type: web
+    runtime: docker
+    plan: free
+    region: frankfurt              # change to your nearest: oregon | ohio | virginia | singapore
+    dockerfilePath: ./analyzer/Dockerfile
+    dockerContext: ./analyzer
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      # Origin(s) of the web app allowed to call the API (comma-separated). The browser
+      # calls the analyzer directly, so this MUST be the web app's public origin.
+      - key: PLUGINGUARD_CORS_ALLOWEDORIGINS
+        value: https://pluginguard-web.onrender.com
+      # Don't leak exception messages on the public API (overrides application.yml).
+      - key: SERVER_ERROR_INCLUDE_MESSAGE
+        value: never
+
+  # --- Next.js 16 web app ----------------------------------------------------
+  - name: pluginguard-web
+    type: web
+    runtime: docker
+    plan: free
+    region: frankfurt
+    dockerfilePath: ./web/Dockerfile
+    dockerContext: ./web
+    autoDeploy: true
+    envVars:
+      # PUBLIC https URL of the analyzer — the browser fetches it directly.
+      # Render passes this as the Docker build ARG of the same name, so it is baked
+      # into the client bundle at BUILD time. Changing it requires a rebuild/redeploy.
+      - key: NEXT_PUBLIC_API_URL
+        value: https://pluginguard-analyzer.onrender.com

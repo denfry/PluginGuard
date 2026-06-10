@@ -26,4 +26,7 @@ COPY --from=build /app/build/libs/*.jar app.jar
 COPY --from=build /app/sandbox-runtime/build/libs/sandbox-runtime-*.jar /opt/pluginguard/sandbox-runtime.jar
 
 EXPOSE 8080
-ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-jar", "app.jar"]
+# Tuned for small/shared free instances (≈512 MB, fractional CPU): cap the heap well under the
+# container limit (metaspace + thread stacks + direct buffers live outside it) and use the
+# low-footprint serial collector. Override MaxRAMPercentage upward on a larger plan.
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=60", "-XX:+UseSerialGC", "-jar", "app.jar"]
