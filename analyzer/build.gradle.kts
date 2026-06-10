@@ -21,6 +21,12 @@ repositories {
 dependencies {
     implementation("org.springframework.boot:spring-boot-starter-web")
 
+    // Optional PostgreSQL persistence for reports (enabled with pluginguard.persistence=jdbc).
+    // The DataSource is wired manually in PersistenceConfig and DataSourceAutoConfiguration is
+    // excluded, so the service still starts with NO database by default (in-memory store).
+    implementation("org.springframework.boot:spring-boot-starter-jdbc")
+    runtimeOnly("org.postgresql:postgresql")
+
     // ASM — bytecode parsing for the core analyzer (parse-only, never loads/links classes)
     implementation("org.ow2.asm:asm:9.7.1")
     implementation("org.ow2.asm:asm-tree:9.7.1")

@@ -1,6 +1,7 @@
 package dev.pluginguard.api;
 
 import dev.pluginguard.engine.model.ScanResult;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
 
 import java.util.Collections;
@@ -9,11 +10,14 @@ import java.util.Map;
 import java.util.Optional;
 
 /**
- * In-memory, bounded store of recent reports so the UI can fetch a report by id after upload.
- * Reports are ephemeral (lost on restart); a durable database is a later phase.
+ * In-memory, bounded {@link ReportStore} — the default. Reports are ephemeral (lost on restart and
+ * not shared across instances). For durable reports, set {@code pluginguard.persistence=jdbc} to use
+ * {@link JdbcReportStore} instead.
  */
 @Component
-public class ScanStore {
+@ConditionalOnProperty(prefix = "pluginguard", name = "persistence", havingValue = "memory",
+        matchIfMissing = true)
+public class ScanStore implements ReportStore {
 
     private static final int MAX_REPORTS = 500;
 
@@ -25,10 +29,12 @@ public class ScanStore {
                 }
             });
 
+    @Override
     public void put(ScanResult result) {
         reports.put(result.id(), result);
     }
 
+    @Override
     public Optional<ScanResult> get(String id) {
         return Optional.ofNullable(reports.get(id));
     }

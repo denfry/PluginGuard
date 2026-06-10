@@ -1,6 +1,6 @@
 package dev.pluginguard.engine.sandbox;
 
-import dev.pluginguard.api.ScanStore;
+import dev.pluginguard.api.ReportStore;
 import dev.pluginguard.config.AnalyzerProperties;
 import dev.pluginguard.engine.model.BehaviorEvent;
 import dev.pluginguard.engine.model.DynamicFinding;
@@ -36,14 +36,14 @@ public class SandboxService {
     private final AnalyzerProperties.Sandbox cfg;
     private final SandboxRunner runner;
     private final DynamicFindingMapper mapper = new DynamicFindingMapper();
-    private final ScanStore store;
+    private final ReportStore store;
     private final ExecutorService executor = Executors.newFixedThreadPool(2, r -> {
         Thread t = new Thread(r, "sandbox-worker");
         t.setDaemon(true);
         return t;
     });
 
-    public SandboxService(AnalyzerProperties properties, SandboxRunner runner, ScanStore store) {
+    public SandboxService(AnalyzerProperties properties, SandboxRunner runner, ReportStore store) {
         this.cfg = properties.getSandbox();
         this.runner = runner;
         this.store = store;

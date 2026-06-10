@@ -26,10 +26,10 @@ import java.util.UUID;
 public class ScanController {
 
     private final AnalysisEngine engine;
-    private final ScanStore store;
+    private final ReportStore store;
     private final SandboxService sandbox;
 
-    public ScanController(AnalysisEngine engine, ScanStore store, SandboxService sandbox) {
+    public ScanController(AnalysisEngine engine, ReportStore store, SandboxService sandbox) {
         this.engine = engine;
         this.store = store;
         this.sandbox = sandbox;

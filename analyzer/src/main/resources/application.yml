@@ -14,8 +14,18 @@ spring:
       # Hard upload ceiling. The JarLoader enforces additional uncompressed-size / zip-bomb guards.
       max-file-size: 50MB
       max-request-size: 55MB
+  datasource:
+    # Used ONLY when pluginguard.persistence=jdbc. Point at a Postgres database via env
+    # (SPRING_DATASOURCE_URL/USERNAME/PASSWORD), e.g. a free, persistent Neon instance. Empty by
+    # default → no database is opened and reports stay in memory.
+    url: ${SPRING_DATASOURCE_URL:}
+    username: ${SPRING_DATASOURCE_USERNAME:}
+    password: ${SPRING_DATASOURCE_PASSWORD:}
 
 pluginguard:
+  # Report storage: `memory` (in-memory, ephemeral — lost on restart) or `jdbc` (PostgreSQL, durable).
+  # Override with env PLUGINGUARD_PERSISTENCE. `jdbc` requires the spring.datasource.* values above.
+  persistence: ${PLUGINGUARD_PERSISTENCE:memory}
   cors:
     # Origins allowed to call the analyzer API (the Next.js web app).
     allowed-origins: "http://localhost:3000,http://127.0.0.1:3000"

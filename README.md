@@ -118,7 +118,7 @@ on a real server). Drag either into the scanner to see a report.
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/api/scan` | multipart `file` → full `ScanResult` JSON |
-| `GET`  | `/api/scan/{id}` | a previously generated report (in-memory, ephemeral) |
+| `GET`  | `/api/scan/{id}` | a previously generated report (in-memory by default; durable with Postgres — see [DEPLOY.md](DEPLOY.md)) |
 | `GET`  | `/api/demo` | a fixed illustrative report |
 | `GET`  | `/api/health` | liveness |
 

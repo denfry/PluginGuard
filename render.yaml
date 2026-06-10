@@ -38,6 +38,11 @@ services:
       # Don't leak exception messages on the public API (overrides application.yml).
       - key: SERVER_ERROR_INCLUDE_MESSAGE
         value: never
+      # Report storage. `memory` = ephemeral (lost on spin-down). For durable /report/{id} links set
+      # this to `jdbc` and add SPRING_DATASOURCE_URL / _USERNAME / _PASSWORD — a free, *persistent*
+      # Neon Postgres works well (Render's own free DB is deleted after 30 days). See DEPLOY.md.
+      - key: PLUGINGUARD_PERSISTENCE
+        value: memory
 
   # --- Next.js 16 web app ----------------------------------------------------
   - name: pluginguard-web

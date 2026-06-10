@@ -32,9 +32,9 @@ Through the proxy, `GET https://<web>.onrender.com/api/health` should return `{"
 - 512 MB / 0.1 CPU; services sleep after ~15 min idle and take ~1 min (+ Spring Boot startup) to
   wake. The `keep-warm` workflow (below) hides this during a daily window; outside it, the first
   request is slow (the proxied call waits for the analyzer to spin up).
-- Reports live in memory (`ScanStore`, 500 max) and are **lost on every spin-down**, so a shared
-  `/report/{id}` link breaks once the analyzer sleeps. The uploader still sees their own report
-  (it's cached in `sessionStorage`).
+- By default reports live in memory (`ScanStore`, 500 max) and are **lost on every spin-down**, so a
+  shared `/report/{id}` link breaks once the analyzer sleeps. Enable Postgres persistence (below) to
+  keep them. The uploader always sees their own report (cached in `sessionStorage`).
 - A big/complex jar is CPU-heavy on 0.1 CPU. There is **no rate limiting** on the upload endpoint —
   fine for a demo, add one before promoting it widely.
 
@@ -54,6 +54,29 @@ variables → Actions). GitHub's scheduler is best-effort (runs can be delayed) 
 60 days with no commits; for a rock-solid pinger use an external uptime monitor (cron-job.org,
 UptimeRobot) pointed at `<web-url>/api/health` on the same window.
 
+### Durable reports (optional Postgres)
+
+By default reports are in-memory and clear when the analyzer sleeps or restarts. To make
+`/report/{id}` links durable, point the analyzer at a PostgreSQL database — each report is stored as
+the same JSON the API returns and read back on demand (the `reports` table is created on first boot
+and capped at the newest 1000 rows).
+
+Use a **persistent** free Postgres. [Neon](https://neon.tech) fits well (its free tier runs
+indefinitely); Render's own free Postgres is **deleted after 30 days**, so avoid it for anything you
+want to keep.
+
+1. Create a free Neon project and copy its **JDBC** connection details.
+2. On the **analyzer** service (Render → Environment) set:
+   - `PLUGINGUARD_PERSISTENCE` = `jdbc`
+   - `SPRING_DATASOURCE_URL` = `jdbc:postgresql://<host>/<db>?sslmode=require`
+   - `SPRING_DATASOURCE_USERNAME` = `<user>`
+   - `SPRING_DATASOURCE_PASSWORD` = `<password>`
+3. Redeploy the analyzer.
+
+Leaving `PLUGINGUARD_PERSISTENCE=memory` (or unset) runs with no database — nothing else changes.
+Verified end-to-end locally: a report scanned before an analyzer restart is still served by
+`GET /api/scan/{id}` afterwards.
+
 ## Option B — Cloud Run (analyzer) + Vercel (web)
 
 Better quotas and scale-to-zero, but needs a GCP billing card and two platforms.
@@ -71,7 +94,8 @@ Better quotas and scale-to-zero, but needs a GCP billing card and two platforms.
 
 ## Before going beyond a demo
 
-- **Persistence:** swap the in-memory `ScanStore` for PostgreSQL so report links survive restarts.
+- **Persistence:** reports are in-memory by default; enable Postgres (see *Durable reports* above) so
+  `/report/{id}` links survive restarts.
 - **Abuse protection:** rate-limit / size-limit the upload path.
 - **Optional layers:** the CVE, reputation and sandbox features stay off here; the sandbox in
   particular needs a Docker daemon and can't run on these free PaaS tiers.
