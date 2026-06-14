@@ -40,6 +40,12 @@ dependencies {
 
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+
+    // Integration tests for the `postgres` profile spin up a real PostgreSQL via Testcontainers
+    // (needs Docker). Versions are managed by the Spring Boot dependency-management BOM.
+    testImplementation("org.springframework.boot:spring-boot-testcontainers")
+    testImplementation("org.testcontainers:junit-jupiter")
+    testImplementation("org.testcontainers:postgresql")
 }
 
 tasks.withType<Test> {
