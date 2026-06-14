@@ -88,6 +88,7 @@ public class AnalysisEngine {
                 jar.sha256(),
                 jar.sizeBytes(),
                 ctx.platform(),
+                ctx.artifactType(),
                 info != null ? info.main() : null,
                 info != null ? info.apiVersion() : null,
                 score,

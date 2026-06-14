@@ -256,6 +256,22 @@ public class BytecodeAnalyzer implements Analyzer {
         return new Rule(id, ownerPrefix, true, Set.of(), cat, sev, title, desc, rec, impact);
     }
 
+    /** Matches any owner whose internal name starts with {@code ownerPrefix} and calls one of {@code methods}. */
+    private static Rule prefixMethodRule(String id, String ownerPrefix, Set<String> methods, Category cat,
+                                         Severity sev, String title, String desc, String rec, int impact) {
+        return new Rule(id, ownerPrefix, true, methods, cat, sev, title, desc, rec, impact);
+    }
+
+    /**
+     * Matches a call to {@code methods} on <em>any</em> owner (empty prefix matches everything). Used
+     * for signals where the owner is remapped/obfuscated but the method name is stable (e.g. the
+     * Minecraft client session accessor {@code getAccessToken}).
+     */
+    private static Rule anyOwnerMethodRule(String id, Set<String> methods, Category cat, Severity sev,
+                                           String title, String desc, String rec, int impact) {
+        return new Rule(id, "", true, methods, cat, sev, title, desc, rec, impact);
+    }
+
     private static List<Rule> buildRules() {
         List<Rule> r = new ArrayList<>();
 
@@ -531,6 +547,40 @@ public class BytecodeAnalyzer implements Analyzer {
                 "Can force-kill the server JVM",
                 "Calls Runtime.halt(), an abrupt JVM shutdown that skips all cleanup.",
                 "Extremely unusual for a plugin; treat as hostile unless clearly justified.", 12));
+
+        // --- Minecraft platform-specific capabilities --------------------------------------
+        // These are not JDK APIs, so a generic scanner misses them, yet they are the building
+        // blocks of the most common Minecraft backdoor: silently granting the attacker operator
+        // rights or running console commands. ASM reads the owner from the constant pool, so we
+        // match the Bukkit/Spigot/Paper API by name without it being on the classpath.
+        r.add(rule("BYTECODE_BUKKIT_CONSOLE_DISPATCH", "org/bukkit/Bukkit", Set.of("dispatchCommand"),
+                Category.MINECRAFT, Severity.MEDIUM,
+                "Runs server commands programmatically",
+                "Calls Bukkit.dispatchCommand(), which executes a server command as if typed in the console. "
+                        + "Legitimate for admin tools, but it is also the standard way a backdoor grants itself "
+                        + "operator rights (e.g. dispatching 'op <attacker>').",
+                "Check which command string is dispatched and whether it can be influenced by chat or network input.", 14));
+        r.add(rule("BYTECODE_BUKKIT_CONSOLE_DISPATCH_SERVER", "org/bukkit/Server", Set.of("dispatchCommand"),
+                Category.MINECRAFT, Severity.MEDIUM,
+                "Runs server commands programmatically",
+                "Calls Server.dispatchCommand(), which executes a server command as if typed in the console. "
+                        + "Legitimate for admin tools, but it is also the standard way a backdoor grants itself "
+                        + "operator rights (e.g. dispatching 'op <attacker>').",
+                "Check which command string is dispatched and whether it can be influenced by chat or network input.", 14));
+        r.add(prefixMethodRule("BYTECODE_BUKKIT_SET_OP", "org/bukkit/", Set.of("setOp"),
+                Category.MINECRAFT, Severity.MEDIUM,
+                "Grants or revokes operator status in code",
+                "Calls setOp() on a player/offline-player, programmatically changing operator (full-admin) status. "
+                        + "Common in rank/permission plugins, but granting op from code — especially to a hard-coded "
+                        + "name or in response to a hidden command — is the core of an operator backdoor.",
+                "Confirm op is only granted to legitimately authorised players, never a fixed name or external input.", 16));
+        r.add(anyOwnerMethodRule("BYTECODE_MC_SESSION_TOKEN", Set.of("getAccessToken"),
+                Category.MINECRAFT, Severity.MEDIUM,
+                "Reads the Minecraft session access token",
+                "Calls getAccessToken(), which on a client retrieves the Minecraft/Microsoft session token. "
+                        + "On a client-side mod this is the exact value an account/session stealer exfiltrates; "
+                        + "a server plugin has no legitimate reason to read it.",
+                "Treat as high risk on client mods — see whether the token is sent over the network.", 20));
 
         return r;
     }

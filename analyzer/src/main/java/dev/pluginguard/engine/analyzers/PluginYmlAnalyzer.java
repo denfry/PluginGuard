@@ -2,6 +2,7 @@ package dev.pluginguard.engine.analyzers;
 
 import dev.pluginguard.engine.AnalysisContext;
 import dev.pluginguard.engine.Analyzer;
+import dev.pluginguard.engine.model.ArtifactType;
 import dev.pluginguard.engine.model.Category;
 import dev.pluginguard.engine.model.Finding;
 import dev.pluginguard.engine.model.PluginInfo;
@@ -44,14 +45,22 @@ public class PluginYmlAnalyzer implements Analyzer {
 
     @Override
     public void analyze(AnalysisContext ctx) {
-        detectPlatform(ctx);
+        // The plugin.yml checks apply only to (potential) Bukkit/Bungee plugins. Mods, packs and
+        // Velocity plugins use their own descriptors and are validated by their own analyzers, so a
+        // Forge mod or a resource pack must not be flagged here for "missing a plugin.yml".
+        ArtifactType type = ctx.artifactType();
+        if (type.isMod() || type.isPack() || type == ArtifactType.PLUGIN_VELOCITY) {
+            return;
+        }
 
         Optional<ResourceFile> descriptor = firstPresent(ctx, "plugin.yml", "paper-plugin.yml", "bungee.yml");
         if (descriptor.isEmpty()) {
             ctx.add(Finding.builder("YML_MISSING", Category.PLUGIN_YML, Severity.MEDIUM)
                     .title("No plugin descriptor found")
-                    .description("No plugin.yml / paper-plugin.yml / bungee.yml was found. A Bukkit/Paper/Bungee "
-                            + "plugin cannot load without one, so this file may not be a normal plugin (or it hides it).")
+                    .description("No plugin.yml / paper-plugin.yml / bungee.yml was found, and the file was not "
+                            + "recognised as a mod or resource/data pack either. A Bukkit/Paper/Bungee plugin cannot "
+                            + "load without a descriptor, so this may be a library, a renamed file, or something hiding "
+                            + "its descriptor.")
                     .recommendation("Confirm what kind of file this is before installing it.")
                     .scoreImpact(10)
                     .build());
@@ -206,24 +215,6 @@ public class PluginYmlAnalyzer implements Analyzer {
                     .recommendation("Informational — review only if other findings are present.")
                     .location(file).evidence(total + " dependencies").scoreImpact(0).build());
         }
-    }
-
-    private void detectPlatform(AnalysisContext ctx) {
-        if (hasResource(ctx, "velocity-plugin.json")) {
-            ctx.setPlatform("Velocity");
-        } else if (hasResource(ctx, "bungee.yml")) {
-            ctx.setPlatform("BungeeCord");
-        } else if (hasResource(ctx, "paper-plugin.yml")) {
-            ctx.setPlatform("Paper");
-        } else if (hasResource(ctx, "plugin.yml")) {
-            ctx.setPlatform("Bukkit/Spigot/Paper");
-        } else {
-            ctx.setPlatform("Unknown");
-        }
-    }
-
-    private boolean hasResource(AnalysisContext ctx, String name) {
-        return ctx.jar().resource(name).isPresent();
     }
 
     private Optional<ResourceFile> firstPresent(AnalysisContext ctx, String... names) {

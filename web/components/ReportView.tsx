@@ -229,7 +229,10 @@ export function ReportView({ report }: { report: ScanResult }) {
 
       {/* Metadata + summaries */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Panel title="plugin.yml" icon={<FileIcon className="h-4 w-4" />}>
+        <Panel
+          title={pluginInfo?.descriptorFile ?? "descriptor"}
+          icon={<FileIcon className="h-4 w-4" />}
+        >
           {pluginInfo ? (
             <div className="space-y-4">
               <dl className="grid grid-cols-2 gap-3">
@@ -240,14 +243,18 @@ export function ReportView({ report }: { report: ScanResult }) {
                 <p className="micro-label text-faint">authors</p>
                 <TagList items={pluginInfo.authors} empty="None declared" />
               </div>
-              <div className="space-y-1.5">
-                <p className="micro-label text-faint">commands</p>
-                <TagList items={pluginInfo.commands} empty="None" />
-              </div>
-              <div className="space-y-1.5">
-                <p className="micro-label text-faint">permissions</p>
-                <TagList items={pluginInfo.permissions} empty="None" />
-              </div>
+              {report.artifactType.startsWith("PLUGIN") && (
+                <>
+                  <div className="space-y-1.5">
+                    <p className="micro-label text-faint">commands</p>
+                    <TagList items={pluginInfo.commands} empty="None" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <p className="micro-label text-faint">permissions</p>
+                    <TagList items={pluginInfo.permissions} empty="None" />
+                  </div>
+                </>
+              )}
               <div className="space-y-1.5">
                 <p className="micro-label text-faint">dependencies</p>
                 <TagList
@@ -257,7 +264,7 @@ export function ReportView({ report }: { report: ScanResult }) {
               </div>
             </div>
           ) : (
-            <p className="text-sm text-faint">No plugin descriptor found.</p>
+            <p className="text-sm text-faint">No descriptor found.</p>
           )}
         </Panel>
 
