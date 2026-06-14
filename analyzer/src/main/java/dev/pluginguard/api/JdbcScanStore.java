@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
+import java.util.function.UnaryOperator;
 
 /**
  * PostgreSQL-backed {@link ScanStore}, active under the {@code postgres} profile.
@@ -60,6 +61,22 @@ public class JdbcScanStore implements ScanStore {
                         (rs, rowNum) -> deserialize(rs.getString(1)), id)
                 .stream()
                 .findFirst();
+    }
+
+    /**
+     * Read-modify-write of one report. The analyzer runs single-instance (one free Render service),
+     * so a {@code synchronized} get→apply→put serializes the two async writers (sandbox + provenance)
+     * adequately; a multi-instance deployment would replace this with {@code SELECT … FOR UPDATE}.
+     */
+    @Override
+    public synchronized ScanResult update(String id, UnaryOperator<ScanResult> updater) {
+        Optional<ScanResult> current = get(id);
+        if (current.isEmpty()) {
+            return null;
+        }
+        ScanResult updated = updater.apply(current.get());
+        put(updated);
+        return updated;
     }
 
     private String serialize(ScanResult result) {

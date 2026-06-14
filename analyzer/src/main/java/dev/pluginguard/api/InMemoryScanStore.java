@@ -8,6 +8,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.UnaryOperator;
 
 /**
  * In-memory, bounded {@link ScanStore} — the default when no durable database is configured.
@@ -36,5 +37,12 @@ public class InMemoryScanStore implements ScanStore {
     @Override
     public Optional<ScanResult> get(String id) {
         return Optional.ofNullable(reports.get(id));
+    }
+
+    @Override
+    public ScanResult update(String id, UnaryOperator<ScanResult> updater) {
+        // compute() on a Collections.synchronizedMap runs under the map's monitor, so the
+        // read-modify-write is atomic against concurrent updates of the same id.
+        return reports.compute(id, (key, current) -> current == null ? null : updater.apply(current));
     }
 }

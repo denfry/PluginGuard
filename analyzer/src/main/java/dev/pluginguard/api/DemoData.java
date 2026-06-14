@@ -9,6 +9,9 @@ import dev.pluginguard.engine.model.DynamicFinding;
 import dev.pluginguard.engine.model.DynamicFinding.DynamicCorrelation;
 import dev.pluginguard.engine.model.Finding;
 import dev.pluginguard.engine.model.PluginInfo;
+import dev.pluginguard.engine.model.ProvenanceMatch;
+import dev.pluginguard.engine.model.ProvenanceReport;
+import dev.pluginguard.engine.model.ProvenanceStatus;
 import dev.pluginguard.engine.model.SandboxReport;
 import dev.pluginguard.engine.model.SandboxStatus;
 import dev.pluginguard.engine.model.ScanResult;
@@ -16,6 +19,7 @@ import dev.pluginguard.engine.model.Severity;
 import dev.pluginguard.engine.model.SeverityCounts;
 import dev.pluginguard.engine.model.Summaries;
 import dev.pluginguard.engine.model.Verdict;
+import dev.pluginguard.engine.provenance.ProvenanceVerifier;
 
 import java.time.Instant;
 import java.util.List;
@@ -56,11 +60,15 @@ public final class DemoData {
                         .location("plugin.yml")
                         .evidence("chatguard.*")
                         .scoreImpact(5).build(),
-                Finding.builder("PROVENANCE_UNVERIFIED", Category.PROVENANCE, Severity.LOW)
-                        .title("Source not verified")
-                        .description("No GitHub repository or signed build was provided for this file.")
-                        .recommendation("Prefer plugins from official, verifiable sources.")
-                        .scoreImpact(5).build());
+                Finding.builder("PROVENANCE_SOURCE_FOUND", Category.PROVENANCE, Severity.INFO)
+                        .title("Source link found in metadata")
+                        .description("This file declares a public source repository: https://github.com/chatguard/ChatGuard. "
+                                + "PluginGuard found the link but has not verified that the published source matches this "
+                                + "exact build, nor that the release is signed.")
+                        .recommendation("Open the link, confirm it is the official project, and check the version/commit "
+                                + "matches the file you are installing.")
+                        .evidence("https://github.com/chatguard/ChatGuard")
+                        .scoreImpact(0).build());
 
         PluginInfo info = new PluginInfo(
                 "plugin.yml", "ChatGuard", "1.4.2", "dev.chatguard.ChatGuardPlugin", "1.21",
@@ -111,6 +119,27 @@ public final class DemoData {
                         "Blocked actions are still strong evidence of intent — the plugin tried, the sandbox stopped it."),
                 null);
 
+        ProvenanceReport provenance = new ProvenanceReport(
+                ProvenanceStatus.VERIFIED,
+                Instant.parse("2026-06-09T12:00:06Z"),
+                Instant.parse("2026-06-09T12:00:07Z"),
+                640L,
+                "ChatGuard",
+                "1.4.2",
+                new ProvenanceMatch(
+                        "Modrinth",
+                        "ChatGuard",
+                        "https://modrinth.com/plugin/chatguard",
+                        "1.4.2",
+                        "ChatGuard-1.4.2.jar",
+                        "b1946ac92492d2347c6235b4d2611184e7b8b9a0f2a3c4d5e6f70819253647affedcba9876543210",
+                        "https://cdn.modrinth.com/data/chatguard/versions/1.4.2/ChatGuard-1.4.2.jar",
+                        true),
+                null,
+                List.of("Modrinth", "Hangar", "GitHub"),
+                ProvenanceVerifier.caveats(),
+                "Byte-for-byte the official 1.4.2 release on Modrinth.");
+
         return new ScanResult(
                 "demo",
                 "ChatGuard-1.4.2.jar",
@@ -128,10 +157,12 @@ public final class DemoData {
                 findings,
                 summaries,
                 List.of("This is a demonstration report with illustrative data.",
-                        "Dynamic sandbox observed 7 behavior event(s); 2 dynamic finding(s)."),
+                        "Dynamic sandbox observed 7 behavior event(s); 2 dynamic finding(s).",
+                        "Authenticity verified: matches the official release on Modrinth."),
                 Instant.parse("2026-06-09T12:00:00Z"),
                 42L,
                 AnalysisEngine.ENGINE_VERSION,
-                sandbox);
+                sandbox,
+                provenance);
     }
 }

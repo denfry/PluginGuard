@@ -29,6 +29,8 @@ import java.util.List;
  * @param engineVersion    analyzer engine version
  * @param sandbox          optional Phase 3 dynamic-analysis section; {@code null} when the sandbox
  *                         feature is disabled and no dynamic run was attempted
+ * @param provenance       optional online-authenticity section; {@code null} when the verification
+ *                         feature is disabled and no online check was attempted
  */
 public record ScanResult(
         String id,
@@ -50,12 +52,20 @@ public record ScanResult(
         Instant analyzedAt,
         long durationMs,
         String engineVersion,
-        SandboxReport sandbox) {
+        SandboxReport sandbox,
+        ProvenanceReport provenance) {
 
     /** Returns a copy with the sandbox section (and, optionally, an updated verdict) replaced. */
     public ScanResult withSandbox(SandboxReport sandbox, Verdict verdict, List<String> notes) {
         return new ScanResult(id, fileName, sha256, sizeBytes, platform, artifactType, mainClass, mcApiVersion,
                 score, verdict, obfuscationScore, counts, pluginInfo, findings, summaries, notes,
-                analyzedAt, durationMs, engineVersion, sandbox);
+                analyzedAt, durationMs, engineVersion, sandbox, provenance);
+    }
+
+    /** Returns a copy with the provenance section (and, optionally, an updated verdict) replaced. */
+    public ScanResult withProvenance(ProvenanceReport provenance, Verdict verdict, List<String> notes) {
+        return new ScanResult(id, fileName, sha256, sizeBytes, platform, artifactType, mainClass, mcApiVersion,
+                score, verdict, obfuscationScore, counts, pluginInfo, findings, summaries, notes,
+                analyzedAt, durationMs, engineVersion, sandbox, provenance);
     }
 }

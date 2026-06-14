@@ -88,17 +88,21 @@ public class SandboxService {
     }
 
     private void launchAsync(ScanResult pending, byte[] jarBytes) {
+        String id = pending.id();
         executor.submit(() -> {
             try {
-                store.put(markRunning(pending));
-                ScanResult done = execute(pending, jarBytes);
-                store.put(done);
+                // Apply only the sandbox section onto the latest stored value, so a concurrent
+                // provenance job's update is never clobbered (and vice versa). The slow run happens
+                // outside the store lock; only the fold runs under it.
+                store.update(id, this::markRunning);
+                SandboxComputation comp = run(pending, jarBytes);
+                store.update(id, prev -> foldInto(prev, comp));
             } catch (RuntimeException e) {
-                log.warn("Sandbox job {} crashed: {}", pending.id(), e.toString());
-                store.put(pending.withSandbox(
+                log.warn("Sandbox job {} crashed: {}", id, e.toString());
+                store.update(id, prev -> prev.withSandbox(
                         SandboxReport.of(SandboxStatus.FAILED, "Sandbox job crashed: " + e.getMessage(),
                                 mapper.caveats()),
-                        pending.verdict(), pending.notes()));
+                        prev.verdict(), prev.notes()));
             }
         });
     }
@@ -114,6 +118,15 @@ public class SandboxService {
      * visibility) so tests can drive it with a stubbed {@link SandboxRunner}.
      */
     ScanResult execute(ScanResult result, byte[] jarBytes) {
+        return foldInto(result, run(result, jarBytes));
+    }
+
+    /** The product of one sandbox run, independent of any report it is later folded into. */
+    private record SandboxComputation(SandboxReport report, Severity worst) {
+    }
+
+    /** Runs the sandbox and builds its report section; does not touch the verdict/notes. */
+    private SandboxComputation run(ScanResult result, byte[] jarBytes) {
         List<String> commands = result.pluginInfo() != null ? result.pluginInfo().commands() : List.of();
         SandboxJob job = new SandboxJob(result.id(), jarBytes, result.fileName(), result.mainClass(), commands);
 
@@ -142,9 +155,14 @@ public class SandboxService {
                 mapper.caveats(),
                 outcome.note());
 
-        Verdict verdict = floorVerdict(result.verdict(), worst, outcome.status());
-        List<String> notes = withSandboxNote(result.notes(), report, verdict, result.verdict());
-        return result.withSandbox(report, verdict, notes);
+        return new SandboxComputation(report, worst);
+    }
+
+    /** Folds a sandbox run onto a base report, raising (never lowering) its verdict. */
+    private static ScanResult foldInto(ScanResult base, SandboxComputation comp) {
+        Verdict verdict = floorVerdict(base.verdict(), comp.worst(), comp.report().status());
+        List<String> notes = withSandboxNote(base.notes(), comp.report(), verdict, base.verdict());
+        return base.withSandbox(comp.report(), verdict, notes);
     }
 
     /** Dynamic evidence raises (never lowers) the verdict. */

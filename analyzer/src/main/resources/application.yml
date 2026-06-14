@@ -42,6 +42,22 @@ pluginguard:
     retries: 1
     known-malicious-source: ""                 # local file path or http(s) URL (one SHA-256 per line)
     known-good-source: ""                      # local file path or http(s) URL (one SHA-256 per line)
+  provenance:
+    # Online authenticity verification. OFF by default — it reaches the network to compare the
+    # uploaded jar against the genuine release published on official sources. Catches backdoored
+    # copies of popular plugins. The static analyzer is unaffected by this flag.
+    enabled: false
+    download-diff: true                        # on a tampered match, download the official jar and diff classes
+    max-download-bytes: 33554432               # 32 MB cap on the official-jar download
+    timeout-ms: 6000
+    retries: 1
+    cache-dir: ""                              # empty → <java.io.tmpdir>/pluginguard-cache
+    cache-ttl-hours: 168                       # 7 days
+    user-agent: "PluginGuard/0.1 (+https://github.com/denfry/PluginGuard)"
+    modrinth-api-url: "https://api.modrinth.com/v2"
+    hangar-api-url: "https://hangar.papermc.io/api/v1"
+    github-api-url: "https://api.github.com"
+    github-token: ""                           # optional; blank uses the unauthenticated rate limit
   retention:
     # Stored reports older than this are purged on a schedule (postgres profile only).
     # 0 or negative disables retention (reports are kept indefinitely).

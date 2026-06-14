@@ -14,6 +14,7 @@ public class AnalyzerProperties {
     private Limits limits = new Limits();
     private SupplyChain supplyChain = new SupplyChain();
     private Sandbox sandbox = new Sandbox();
+    private Provenance provenance = new Provenance();
     private Retention retention = new Retention();
     private Api api = new Api();
 
@@ -25,6 +26,8 @@ public class AnalyzerProperties {
     public void setSupplyChain(SupplyChain supplyChain) { this.supplyChain = supplyChain; }
     public Sandbox getSandbox() { return sandbox; }
     public void setSandbox(Sandbox sandbox) { this.sandbox = sandbox; }
+    public Provenance getProvenance() { return provenance; }
+    public void setProvenance(Provenance provenance) { this.provenance = provenance; }
     public Retention getRetention() { return retention; }
     public void setRetention(Retention retention) { this.retention = retention; }
     public Api getApi() { return api; }
@@ -200,6 +203,65 @@ public class AnalyzerProperties {
                 return Path.of(workDir);
             }
             return Path.of(System.getProperty("java.io.tmpdir", "."), "pluginguard-sandbox");
+        }
+    }
+
+    /**
+     * Online authenticity verification. <strong>Off by default</strong>: it reaches the network to
+     * compare the uploaded jar against the genuine release published on official sources (Modrinth,
+     * Hangar, GitHub Releases). The static analyzer is unaffected by this flag.
+     */
+    public static class Provenance {
+        private boolean enabled = false;
+        /** When a tampered copy is found, download the official jar and diff it class-by-class. */
+        private boolean downloadDiff = true;
+        /** Hard cap on the official-jar download size for the structural diff (bytes). */
+        private long maxDownloadBytes = 33_554_432L; // 32 MB
+        private int timeoutMs = 6000;
+        private int retries = 1;
+        /** Disk cache directory; empty → {@code <java.io.tmpdir>/pluginguard-cache}. */
+        private String cacheDir = "";
+        private long cacheTtlHours = 168; // 7 days
+        /** Descriptive User-Agent — Modrinth API etiquette asks callers to identify themselves. */
+        private String userAgent = "PluginGuard/0.1 (+https://github.com/denfry/PluginGuard)";
+
+        private String modrinthApiUrl = "https://api.modrinth.com/v2";
+        private String hangarApiUrl = "https://hangar.papermc.io/api/v1";
+        private String githubApiUrl = "https://api.github.com";
+        /** Optional GitHub token; blank uses the unauthenticated (lower) rate limit. */
+        private String githubToken = "";
+
+        public boolean isEnabled() { return enabled; }
+        public void setEnabled(boolean v) { this.enabled = v; }
+        public boolean isDownloadDiff() { return downloadDiff; }
+        public void setDownloadDiff(boolean v) { this.downloadDiff = v; }
+        public long getMaxDownloadBytes() { return maxDownloadBytes; }
+        public void setMaxDownloadBytes(long v) { this.maxDownloadBytes = v; }
+        public int getTimeoutMs() { return timeoutMs; }
+        public void setTimeoutMs(int v) { this.timeoutMs = v; }
+        public int getRetries() { return retries; }
+        public void setRetries(int v) { this.retries = v; }
+        public String getCacheDir() { return cacheDir; }
+        public void setCacheDir(String v) { this.cacheDir = v; }
+        public long getCacheTtlHours() { return cacheTtlHours; }
+        public void setCacheTtlHours(long v) { this.cacheTtlHours = v; }
+        public String getUserAgent() { return userAgent; }
+        public void setUserAgent(String v) { this.userAgent = v; }
+        public String getModrinthApiUrl() { return modrinthApiUrl; }
+        public void setModrinthApiUrl(String v) { this.modrinthApiUrl = v; }
+        public String getHangarApiUrl() { return hangarApiUrl; }
+        public void setHangarApiUrl(String v) { this.hangarApiUrl = v; }
+        public String getGithubApiUrl() { return githubApiUrl; }
+        public void setGithubApiUrl(String v) { this.githubApiUrl = v; }
+        public String getGithubToken() { return githubToken; }
+        public void setGithubToken(String v) { this.githubToken = v; }
+
+        /** Resolves the effective cache directory, defaulting under the system temp dir. */
+        public Path resolveCacheDir() {
+            if (cacheDir != null && !cacheDir.isBlank()) {
+                return Path.of(cacheDir);
+            }
+            return Path.of(System.getProperty("java.io.tmpdir", "."), "pluginguard-cache");
         }
     }
 }

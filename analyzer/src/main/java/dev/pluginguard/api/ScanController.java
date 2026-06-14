@@ -4,6 +4,7 @@ import dev.pluginguard.api.auth.ApiPrincipal;
 import dev.pluginguard.engine.AnalysisEngine;
 import dev.pluginguard.engine.AnalysisException;
 import dev.pluginguard.engine.model.ScanResult;
+import dev.pluginguard.engine.provenance.ProvenanceService;
 import dev.pluginguard.engine.sandbox.SandboxService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -33,11 +34,14 @@ public class ScanController {
     private final AnalysisEngine engine;
     private final ScanStore store;
     private final SandboxService sandbox;
+    private final ProvenanceService provenance;
 
-    public ScanController(AnalysisEngine engine, ScanStore store, SandboxService sandbox) {
+    public ScanController(AnalysisEngine engine, ScanStore store, SandboxService sandbox,
+                          ProvenanceService provenance) {
         this.engine = engine;
         this.store = store;
         this.sandbox = sandbox;
+        this.provenance = provenance;
     }
 
     @GetMapping("/health")
@@ -99,10 +103,12 @@ public class ScanController {
         }
         String id = UUID.randomUUID().toString();
         ScanResult result = engine.analyze(id, fileName, data);
-        // Attach the (optional) dynamic sandbox section and, if enabled and the caller is entitled,
-        // launch the async run. The static report is returned immediately; GET /api/scan/{id}
-        // reflects the sandbox status.
+        // Attach the (optional) dynamic sandbox and online-authenticity sections and, if enabled and
+        // the caller is entitled, launch their async jobs. The static report is returned immediately;
+        // GET /api/scan/{id} reflects each job's status as it progresses (both update in place via the
+        // store's atomic per-id merge, so neither clobbers the other).
         result = sandbox.attach(result, data, sandboxEntitled);
+        result = provenance.attach(result, data, sandboxEntitled);
         store.put(result);
         return result;
     }

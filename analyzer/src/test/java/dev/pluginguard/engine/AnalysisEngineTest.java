@@ -31,9 +31,10 @@ class AnalysisEngineTest {
         assertThat(result.pluginInfo()).isNotNull();
         assertThat(result.pluginInfo().name()).isEqualTo("BenignChat");
         assertThat(result.mainClass()).isEqualTo("com.example.benign.BenignPlugin");
-        // The benign GitHub URL is captured as a network indicator but raises no finding.
+        // The benign GitHub URL is captured as a network indicator and recognised as a source link.
         assertThat(result.summaries().network()).contains("api.github.com");
-        assertThat(ruleIds(result)).doesNotContain("YML_MAIN_MISSING");
+        assertThat(ruleIds(result)).contains("PROVENANCE_SOURCE_FOUND");
+        assertThat(ruleIds(result)).doesNotContain("PROVENANCE_UNVERIFIED", "YML_MAIN_MISSING");
     }
 
     @Test
