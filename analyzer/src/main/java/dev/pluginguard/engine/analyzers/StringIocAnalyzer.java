@@ -153,14 +153,27 @@ public class StringIocAnalyzer implements Analyzer {
                 "A string strongly associated with running shell commands or downloading files was found.",
                 "Combined with process-execution bytecode, this is a serious red flag.");
 
-        // Credential / token theft targets.
+        // Credential / token theft targets. Covers Minecraft launcher accounts and Microsoft session
+        // credentials, the server's own operator/whitelist files, and SSH keys.
         scanMarkers(ctx, seen, source, lower,
-                List.of("launcher_accounts.json", "launcher_profiles.json", "id_rsa", "/.ssh/", "\\.ssh\\"),
+                List.of("launcher_accounts.json", "launcher_profiles.json", "launcher_msa_credentials",
+                        "ops.json", "usercache.json", "whitelist.json", "id_rsa", "/.ssh/", "\\.ssh\\"),
                 "IOC_CREDENTIAL_TARGET", Category.FILESYSTEM, Severity.HIGH, 30,
                 "Credential-theft target string",
-                "A path commonly targeted by credential/account stealers (e.g. Minecraft launcher accounts, SSH keys) "
-                        + "was found.",
+                "A path commonly targeted by credential/account stealers (Minecraft launcher accounts, Microsoft "
+                        + "session credentials, the server's ops.json/usercache, or SSH keys) was found.",
                 "Strong indicator of an account/session stealer — do not install without thorough review.");
+
+        // Browser credential / token stores (Chrome/Firefox login DBs, Discord token storage). These
+        // are the loot of client-side mod stealers (e.g. the fractureiser worm targeted exactly these).
+        scanMarkers(ctx, seen, source, lower,
+                List.of("logins.json", "key4.db", "cookies.sqlite", "cookies.txt",
+                        "login data", "discordcanary", "lightcord", "discordptb"),
+                "IOC_BROWSER_CREDENTIAL", Category.FILESYSTEM, Severity.MEDIUM, 16,
+                "Browser / Discord credential store reference",
+                "A path to a browser login/cookie database or a Discord client credential store was found. These "
+                        + "are the files info-stealers read to lift saved passwords, cookies and Discord tokens.",
+                "A Minecraft plugin/mod has no reason to read browser or Discord credentials; treat as hostile.");
 
         // Sensitive local directories. The .minecraft marker is a path-aware regex so the
         // net.minecraft.* package prefix (ubiquitous in NMS code) does not trigger it.

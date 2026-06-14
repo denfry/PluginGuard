@@ -1,6 +1,7 @@
 package dev.pluginguard.engine;
 
 import dev.pluginguard.engine.bytecode.ClassScan;
+import dev.pluginguard.engine.model.ArtifactType;
 import dev.pluginguard.engine.model.Dependency;
 import dev.pluginguard.engine.model.Finding;
 import dev.pluginguard.engine.model.JarModel;
@@ -28,6 +29,7 @@ public class AnalysisContext {
     private final List<String> notes = new ArrayList<>();
 
     private String platform = "Unknown";
+    private ArtifactType artifactType = ArtifactType.UNKNOWN;
     private PluginInfo pluginInfo;
     private int obfuscationScore;
     private int methodCount;
@@ -59,6 +61,9 @@ public class AnalysisContext {
 
     public String platform() { return platform; }
     public void setPlatform(String platform) { this.platform = platform; }
+
+    public ArtifactType artifactType() { return artifactType; }
+    public void setArtifactType(ArtifactType artifactType) { this.artifactType = artifactType; }
 
     public PluginInfo pluginInfo() { return pluginInfo; }
     public void setPluginInfo(PluginInfo pluginInfo) { this.pluginInfo = pluginInfo; }

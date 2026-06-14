@@ -35,6 +35,12 @@ public class JarBuilder {
         return addClass(internalName, "run", List.of(), List.of());
     }
 
+    /** Adds an empty class that implements the given interface internal names (e.g. a coremod transformer). */
+    public JarBuilder addClassImplementing(String internalName, String... interfaces) {
+        entries.put(internalName + ".class", interfaceClassBytes(internalName, interfaces));
+        return this;
+    }
+
     /** Adds a class with one method containing the given injected calls and string constants. */
     public JarBuilder addClass(String internalName, String methodName, List<Call> calls, List<String> strings) {
         entries.put(internalName + ".class", classBytes(internalName, methodName, calls, strings));
@@ -104,6 +110,21 @@ public class JarBuilder {
         mv.visitMaxs(0, 0);
         mv.visitEnd();
 
+        cw.visitEnd();
+        return cw.toByteArray();
+    }
+
+    private static byte[] interfaceClassBytes(String internalName, String[] interfaces) {
+        ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        cw.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC, internalName, null, "java/lang/Object",
+                interfaces == null || interfaces.length == 0 ? null : interfaces);
+        MethodVisitor ctor = cw.visitMethod(Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);
+        ctor.visitCode();
+        ctor.visitVarInsn(Opcodes.ALOAD, 0);
+        ctor.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/lang/Object", "<init>", "()V", false);
+        ctor.visitInsn(Opcodes.RETURN);
+        ctor.visitMaxs(0, 0);
+        ctor.visitEnd();
         cw.visitEnd();
         return cw.toByteArray();
     }

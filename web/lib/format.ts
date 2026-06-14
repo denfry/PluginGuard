@@ -106,6 +106,10 @@ export const CATEGORY_LABEL: Record<Category, string> = {
   STRING_IOC: "Indicators",
   SUPPLY_CHAIN: "Supply chain",
   COMBO: "Correlated",
+  MINECRAFT: "Minecraft API",
+  MALWARE_SIGNATURE: "Known malware",
+  RESOURCE_PACK: "Resource pack",
+  DATA_PACK: "Data pack",
   PROVENANCE: "Provenance",
 };
 

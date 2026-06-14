@@ -11,7 +11,9 @@ import java.util.List;
  * @param fileName         original uploaded filename
  * @param sha256           SHA-256 of the uploaded bytes
  * @param sizeBytes        size of the uploaded file in bytes
- * @param platform         detected plugin platform (Paper/Bukkit, BungeeCord, Velocity, Unknown)
+ * @param platform         detected platform label (Paper/Bukkit, BungeeCord, Velocity, Forge, Fabric,
+ *                         resource/data pack, …) — the {@code artifactType}'s human-readable form
+ * @param artifactType     classified artifact kind (plugin / mod / resource pack / data pack / unknown)
  * @param mainClass        declared main class, or {@code null}
  * @param mcApiVersion     declared Minecraft api-version, or {@code null}
  * @param score            security score, 0–100 (higher is safer)
@@ -34,6 +36,7 @@ public record ScanResult(
         String sha256,
         long sizeBytes,
         String platform,
+        ArtifactType artifactType,
         String mainClass,
         String mcApiVersion,
         int score,
@@ -51,7 +54,7 @@ public record ScanResult(
 
     /** Returns a copy with the sandbox section (and, optionally, an updated verdict) replaced. */
     public ScanResult withSandbox(SandboxReport sandbox, Verdict verdict, List<String> notes) {
-        return new ScanResult(id, fileName, sha256, sizeBytes, platform, mainClass, mcApiVersion,
+        return new ScanResult(id, fileName, sha256, sizeBytes, platform, artifactType, mainClass, mcApiVersion,
                 score, verdict, obfuscationScore, counts, pluginInfo, findings, summaries, notes,
                 analyzedAt, durationMs, engineVersion, sandbox);
     }

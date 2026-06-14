@@ -54,11 +54,22 @@ public class CorrelationAnalyzer implements Analyzer {
                 || rules.contains("DECODE_EMBEDDED_NATIVE")
                 || rules.contains("DECODE_HIDDEN_IOC")
                 || rules.contains("IOC_BASE64_BLOBS");
-        boolean credentialTheft = rules.contains("IOC_CREDENTIAL_TARGET");
+        boolean credentialTheft = rules.contains("IOC_CREDENTIAL_TARGET")
+                || rules.contains("IOC_BROWSER_CREDENTIAL");
         boolean exfilChannel = network
                 || rules.contains("IOC_DISCORD_WEBHOOK")
                 || rules.contains("IOC_TELEGRAM_API")
                 || rules.contains("IOC_HARDCODED_IP");
+
+        // Minecraft operator/command control, and whether it is deliberately concealed.
+        boolean opControl = rules.contains("BYTECODE_BUKKIT_SET_OP")
+                || rules.contains("BYTECODE_BUKKIT_CONSOLE_DISPATCH")
+                || rules.contains("BYTECODE_BUKKIT_CONSOLE_DISPATCH_SERVER");
+        boolean concealed = encodedPayload
+                || rules.contains("IOC_NULLED_DISTRIBUTION")
+                || rules.contains("BYTECODE_INDY_CUSTOM_BOOTSTRAP")
+                || rules.contains("BYTECODE_REFLECTIVE_DANGEROUS_METHOD")
+                || rules.contains("BYTECODE_REFLECTIVE_DANGEROUS_CLASS");
 
         List<Combo> combos = new ArrayList<>();
 
@@ -119,6 +130,17 @@ public class CorrelationAnalyzer implements Analyzer {
                             + "channel to send data out. This is the signature of an account/session stealer.",
                     "Do not install. This pattern exists almost exclusively to steal credentials.",
                     related(ctx, Category.FILESYSTEM, Category.NETWORK)));
+        }
+        if (opControl && concealed) {
+            combos.add(new Combo("COMBO_OP_BACKDOOR", Severity.HIGH, 45,
+                    "Hidden operator/command backdoor",
+                    "The plugin can grant operator rights or run console commands from code, and it also shows "
+                            + "concealment — obfuscation, an encoded payload, reflective resolution of dangerous APIs, or "
+                            + "piracy-site repacking. Privilege escalation hidden behind concealment is the hallmark of an "
+                            + "operator backdoor.",
+                    "Review exactly when op is granted or which command is dispatched; a hard-coded recipient or a "
+                            + "hidden trigger is hostile.",
+                    related(ctx, Category.MINECRAFT, Category.OBFUSCATION, Category.REFLECTION)));
         }
 
         for (Combo c : combos) {

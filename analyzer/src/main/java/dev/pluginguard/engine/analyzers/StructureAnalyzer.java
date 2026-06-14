@@ -11,6 +11,7 @@ import dev.pluginguard.engine.model.Severity;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
@@ -97,6 +98,11 @@ public class StructureAnalyzer implements Analyzer {
                     .build());
         }
 
+        // Zip-slip / path traversal: entry names that escape the extraction directory. Harmless for a
+        // server that loads a plugin in place, but resource/data packs and mods are unpacked by many
+        // tools, and a "../" entry can overwrite files outside the target folder.
+        checkPathTraversal(ctx, jar);
+
         // Java-agent manifest capability.
         jar.resource("META-INF/MANIFEST.MF").ifPresent(mf -> checkManifest(ctx, mf));
 
@@ -125,6 +131,37 @@ public class StructureAnalyzer implements Analyzer {
                         .build());
             }
         }
+    }
+
+    /** Flags entries whose path escapes the extraction root ({@code ../}, absolute or drive-qualified). */
+    private void checkPathTraversal(AnalysisContext ctx, JarModel jar) {
+        List<String> offending = new ArrayList<>();
+        for (JarEntryInfo entry : jar.entries()) {
+            String name = entry.name();
+            // Compare on the path within its own archive (after any nested "lib.jar!/" prefix).
+            int sep = name.lastIndexOf("!/");
+            String bare = sep >= 0 ? name.substring(sep + 2) : name;
+            if (bare.contains("../") || bare.contains("..\\")
+                    || bare.startsWith("/") || bare.startsWith("\\")
+                    || bare.matches("(?i)^[a-z]:[\\\\/].*")) {
+                offending.add(name);
+            }
+        }
+        if (offending.isEmpty()) {
+            return;
+        }
+        int limit = Math.min(offending.size(), 5);
+        String examples = String.join(", ", offending.subList(0, limit));
+        ctx.add(Finding.builder("STRUCTURE_PATH_TRAVERSAL", Category.STRUCTURE, Severity.HIGH)
+                .title("Archive entry escapes its folder (zip-slip)")
+                .description("The archive contains " + offending.size() + " entry path(s) that point outside the "
+                        + "extraction directory (e.g. '../' or an absolute path): " + examples
+                        + (offending.size() > limit ? ", …" : "") + ". When unpacked by a tool that does not sanitise "
+                        + "paths, such an entry can overwrite files elsewhere on disk — the zip-slip attack.")
+                .recommendation("Treat as hostile. Legitimate plugins/mods/packs never need to write outside their own tree.")
+                .evidence(examples.length() <= 160 ? examples : examples.substring(0, 157) + "...")
+                .scoreImpact(28)
+                .build());
     }
 
     private void checkManifest(AnalysisContext ctx, ResourceFile manifest) {

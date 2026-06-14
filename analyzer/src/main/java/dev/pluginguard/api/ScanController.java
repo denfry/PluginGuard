@@ -18,6 +18,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.io.IOException;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /** REST API for the PluginGuard analyzer. */
@@ -47,8 +48,9 @@ public class ScanController {
             throw new AnalysisException("No file was uploaded.");
         }
         String fileName = sanitizeFileName(file.getOriginalFilename());
-        if (!fileName.toLowerCase(Locale.ROOT).endsWith(".jar")) {
-            throw new AnalysisException("Only .jar files are supported.");
+        if (!isSupportedExtension(fileName)) {
+            throw new AnalysisException("Unsupported file type. Upload a plugin/mod .jar, or a resource/data "
+                    + "pack .zip (.mcpack/.litemod also accepted).");
         }
 
         byte[] data;
@@ -79,6 +81,14 @@ public class ScanController {
     @GetMapping("/demo")
     public ScanResult demo() {
         return DemoData.sample();
+    }
+
+    /** Plugins/mods ship as {@code .jar}; resource/data packs as {@code .zip} ({@code .mcpack}/{@code .litemod} too). */
+    private static final Set<String> SUPPORTED_EXTENSIONS = Set.of(".jar", ".zip", ".mcpack", ".litemod");
+
+    private static boolean isSupportedExtension(String fileName) {
+        String lower = fileName.toLowerCase(Locale.ROOT);
+        return SUPPORTED_EXTENSIONS.stream().anyMatch(lower::endsWith);
     }
 
     private static String sanitizeFileName(String name) {

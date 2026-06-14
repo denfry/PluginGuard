@@ -1,11 +1,20 @@
 # PluginGuard
 
-**Deep, risk-based static security analysis for Minecraft plugin `.jar` files.**
+**Deep, risk-based static security analysis for Minecraft plugins, mods, resource packs and data packs.**
 
-Upload a plugin and PluginGuard shows what it *really* does before you install it on your
-server: dangerous bytecode calls, network indicators, credential-theft markers, obfuscation,
-bundled dependencies and `plugin.yml` validation — distilled into a 0–100 security score, a
-verdict and an itemised report.
+Upload an artifact and PluginGuard shows what it *really* does before you install it: dangerous
+bytecode calls, network indicators, credential-theft markers, known-malware signatures, obfuscation,
+bundled dependencies and descriptor validation — distilled into a 0–100 security score, a verdict and
+an itemised report.
+
+It auto-detects the artifact kind and analyzes each accordingly:
+
+| Artifact | Input | What's analyzed |
+|----------|-------|-----------------|
+| **Server plugin** | `.jar` | Bukkit/Spigot/Paper, BungeeCord, Velocity — full bytecode engine + `plugin.yml` |
+| **Mod** | `.jar` | Forge/NeoForge (`mods.toml`), Fabric/Quilt (`fabric.mod.json`/`quilt.mod.json`) — same bytecode engine + coremod/transformer & access-widener checks |
+| **Resource pack** | `.zip` | `pack.mcmeta`, disguised payloads, phishing text, zip-slip, shaders (assets only — cannot run code) |
+| **Data pack** | `.zip` | `.mcfunction` command scanning: auto-run `load`/`tick` tags, `op` commands, lag loops, phishing `tellraw` links |
 
 > ⚠️ **Not a guarantee.** PluginGuard performs *static* analysis and reports **risk**, not proof
 > of safety or malice. A clean scan is not a green light, and a high-risk finding is not always
@@ -25,7 +34,8 @@ treats a *combination* of capabilities as far more serious than any one of them 
 
 | Pass | Highlights |
 |------|------------|
-| **Structure** | Real JAR vs renamed file, native libs (`.dll/.so/.exe/…`), nested JARs, Java-agent manifests, external manifest `Class-Path`, zip-bomb guards |
+| **Artifact detection** | Auto-classifies the upload (Bukkit/Bungee/Velocity plugin, Forge/NeoForge/Fabric/Quilt mod, resource pack, data pack) so each is judged by the right rules |
+| **Structure** | Real JAR vs renamed file, native libs (`.dll/.so/.exe/…`), nested JARs, Java-agent manifests, external manifest `Class-Path`, zip-bomb guards, **zip-slip / path-traversal entries** |
 | **Nested JARs** | Bundled/shaded `.jar`/`.zip`/`.war` are unpacked and analyzed **recursively** (to a depth limit); findings are attributed with the jar-chain path (`lib.jar!/com/evil/X`) |
 | **plugin.yml** | name/version/main/api-version, commands, permissions, missing main class, wildcard perms, backdoor-style commands, `load: STARTUP`/`loadbefore`, remote `libraries:`, dependency count |
 | **Bytecode (ASM)** | Process exec, dynamic/remote class loading (incl. `MethodHandles.Lookup.defineClass`, instrumentation, **JNDI lookup**), native loading, reflection + `setAccessible`/`jdk.internal`, **scripting engines** (JS/Groovy/BeanShell/…), **deserialization** (`ObjectInputStream`/XStream), AWT `Robot`/clipboard/desktop, low-level networking (UDP/multicast/RMI), `SecurityManager` removal, **time-bomb** heuristic, `System.exit`/`halt` |
@@ -35,7 +45,11 @@ treats a *combination* of capabilities as far more serious than any one of them 
 | **Embedded payloads** | Every resource's **raw bytes** are checked against file magic regardless of extension (class/zip/PE/ELF/Mach-O disguised as `.png/.dat/…`), plus an entropy check for encrypted/packed blobs |
 | **Strings / IOC** | URLs & Discord/Telegram webhooks, public IPs, shell-command markers, credential-theft paths, base64 blobs |
 | **Obfuscation** | Short class/method names, default packages, reflection density, encoded-string density → 0–100 score |
-| **Correlation (combo)** | Raises Critical/High when capabilities combine: network + class loading = remote loader; class loading + crypto/encoded = encrypted payload loader; reflection + process; deserialization + network; native + process = dropper; scripting + network; credential paths + exfiltration = stealer |
+| **Minecraft API** | Platform-specific sinks the generic table misses: console-command dispatch (`Bukkit.dispatchCommand`), operator control (`setOp`), and reading the client session token (`getAccessToken`) |
+| **Known malware** | Curated signatures for documented Minecraft malware families (the **fractureiser** worm, a session-stealer RAT): injected package namespaces, hard-coded C2 hosts/IPs, dropped-file names — a match is strong evidence the file is/was infected |
+| **Mods** | Parses `mods.toml`/`neoforge.mods.toml`/`fabric.mod.json`/`quilt.mod.json`; flags coremods / raw class transformers (rewrite arbitrary classes at load), `IMixinConfigPlugin`, and access-wideners |
+| **Resource / data packs** | `pack.mcmeta` validity; data-pack `.mcfunction` scanning for auto-run `load`/`tick` tags, `op`/`deop` commands, self-recursive lag loops, and `tellraw` phishing links; shader notice |
+| **Correlation (combo)** | Raises Critical/High when capabilities combine: network + class loading = remote loader; class loading + crypto/encoded = encrypted payload loader; reflection + process; deserialization + network; native + process = dropper; scripting + network; credential paths + exfiltration = stealer; **op/console control + concealment = operator backdoor** |
 | **Dependencies** | Best-effort SBOM from `pom.properties` + nested JARs |
 | **CVE check** *(opt-in)* | Queries OSV.dev for known vulnerabilities in bundled `groupId:artifactId:version` dependencies; severity from CVSS/GHSA, links to the advisory; disk cache + offline fallback |
 | **Reputation** *(opt-in)* | Matches the JAR's (and nested JARs') SHA-256 against pull-able known-malicious (Critical) / known-good (info) lists |
@@ -48,6 +62,10 @@ treats a *combination* of capabilities as far more serious than any one of them 
 > malware can detect the sandbox and lie low (sandbox evasion). PluginGuard's goal is to make
 > hiding a backdoor *expensive and noisy*, not to prove safety. The report always states **risk**,
 > never a "safe" verdict.
+>
+> The dynamic sandbox (below) runs **server plugins only** — mods, resource packs and data packs
+> receive deep *static* analysis but are never executed, and resource packs are inherently low-risk
+> (assets, no code). A clean static scan of a mod is therefore not a guarantee.
 
 ---
 
@@ -114,7 +132,7 @@ on a real server). Drag either into the scanner to see a report.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/api/scan` | multipart `file` → full `ScanResult` JSON |
+| `POST` | `/api/scan` | multipart `file` (`.jar` plugin/mod, or `.zip`/`.mcpack`/`.litemod` pack) → full `ScanResult` JSON |
 | `GET`  | `/api/scan/{id}` | a previously generated report (in-memory, ephemeral) |
 | `GET`  | `/api/demo` | a fixed illustrative report |
 | `GET`  | `/api/health` | liveness |
@@ -211,6 +229,15 @@ the report (confirmed vs. runtime-only) and floors the verdict on dynamic Critic
 It actually executes the plugin, so it is **off by default** and enabled under
 `pluginguard.sandbox.*` (see [Dynamic sandbox](#dynamic-sandbox-phase-3-opt-in)). Honest caveats
 about sandbox evasion and dormant code are shown with every dynamic report.
+
+**Phase 4 — multi-artifact coverage (done):** auto-detects the artifact kind and extends the engine
+beyond Bukkit plugins to Forge/NeoForge/Fabric/Quilt **mods** (descriptor parsing + coremod/transformer
+& access-widener checks; the whole bytecode engine applies since a mod is just a JAR of classes),
+**resource packs** (pack.mcmeta, disguised payloads, phishing, zip-slip, shaders) and **data packs**
+(`.mcfunction` scanning: auto-run tags, `op` commands, lag loops, phishing links). It also closes the
+biggest plugin gaps — Minecraft-specific sinks (console-command dispatch, `setOp`, session-token read),
+a known-malware signature table (**fractureiser** and a session-stealer RAT), broader credential IOCs,
+and an operator-backdoor correlation. Mods/packs are static-only (the sandbox runs plugins).
 
 Next: GitHub/SHA provenance + Sigstore signatures · PostgreSQL + a job queue · public report
 database · API keys · browser extension / Discord bot / GitHub Action / "Scanned by PluginGuard" badge.

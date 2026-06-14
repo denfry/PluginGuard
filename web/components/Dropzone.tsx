@@ -6,6 +6,9 @@ import { ApiError, MAX_UPLOAD_BYTES, scanFile } from "@/lib/api";
 import { formatBytes } from "@/lib/format";
 import { UploadIcon, AlertIcon } from "./icons";
 
+/** Plugins/mods are .jar; resource/data packs are .zip (.mcpack/.litemod also accepted). */
+const ACCEPTED_EXTENSIONS = [".jar", ".zip", ".mcpack", ".litemod"];
+
 /** Viewfinder corner bracket; spreads outward while dragging a file over the zone. */
 function Corner({ pos, out }: { pos: "tl" | "tr" | "bl" | "br"; out: boolean }) {
   const edges = {
@@ -50,8 +53,8 @@ export function Dropzone() {
 
   async function handleFile(file: File) {
     setError(null);
-    if (!file.name.toLowerCase().endsWith(".jar")) {
-      setError("Please choose a .jar file.");
+    if (!ACCEPTED_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext))) {
+      setError("Please choose a plugin/mod .jar or a resource/data pack .zip.");
       return;
     }
     if (file.size > MAX_UPLOAD_BYTES) {
@@ -112,7 +115,7 @@ export function Dropzone() {
           <input
             ref={inputRef}
             type="file"
-            accept=".jar,application/java-archive"
+            accept=".jar,.zip,.mcpack,.litemod,application/java-archive,application/zip"
             className="hidden"
             onChange={(e) => {
               const file = e.target.files?.[0];
@@ -142,10 +145,11 @@ export function Dropzone() {
               </span>
               <div>
                 <p className="font-display text-xl font-medium">
-                  Drop a <span className="text-primary">.jar</span> to scan it
+                  Drop a <span className="text-primary">.jar</span> or{" "}
+                  <span className="text-primary">.zip</span> to scan it
                 </p>
                 <p className="mt-1.5 text-sm text-muted">
-                  or browse for a file · up to 50 MB
+                  plugin · mod · resource / data pack · up to 50 MB
                 </p>
               </div>
               <span className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-bg transition hover:brightness-110">

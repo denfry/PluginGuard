@@ -26,7 +26,24 @@ export type Category =
   | "STRING_IOC"
   | "SUPPLY_CHAIN"
   | "COMBO"
+  | "MINECRAFT"
+  | "MALWARE_SIGNATURE"
+  | "RESOURCE_PACK"
+  | "DATA_PACK"
   | "PROVENANCE";
+
+/** Classified artifact kind — mirrors the analyzer's dev.pluginguard.engine.model.ArtifactType. */
+export type ArtifactType =
+  | "PLUGIN_BUKKIT"
+  | "PLUGIN_BUNGEE"
+  | "PLUGIN_VELOCITY"
+  | "MOD_FORGE"
+  | "MOD_NEOFORGE"
+  | "MOD_FABRIC"
+  | "MOD_QUILT"
+  | "RESOURCE_PACK"
+  | "DATA_PACK"
+  | "UNKNOWN";
 
 export interface Finding {
   ruleId: string;
@@ -130,6 +147,7 @@ export interface ScanResult {
   sha256: string;
   sizeBytes: number;
   platform: string;
+  artifactType: ArtifactType;
   mainClass: string | null;
   mcApiVersion: string | null;
   score: number;
