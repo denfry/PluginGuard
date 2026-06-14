@@ -3,16 +3,19 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ShieldIcon } from "./icons";
+import { LanguageToggle } from "./LanguageToggle";
+import { useI18n } from "@/lib/i18n";
 
-const LINKS: { href: string; label: string; desktopOnly?: boolean }[] = [
-  { href: "/", label: "Scanner" },
-  { href: "/demo", label: "Demo report" },
+const LINKS: { href: string; key: string; desktopOnly?: boolean }[] = [
+  { href: "/", key: "nav.scanner" },
+  { href: "/demo", key: "nav.demo" },
   // The anchor link is hidden on phones to keep the bar on one line.
-  { href: "/#what-we-scan", label: "Pipeline", desktopOnly: true },
+  { href: "/#what-we-scan", key: "nav.pipeline", desktopOnly: true },
 ];
 
 export function Navbar() {
   const pathname = usePathname();
+  const { t } = useI18n();
 
   return (
     <header className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-md">
@@ -41,10 +44,13 @@ export function Navbar() {
                     : "text-muted hover:bg-card hover:text-ink"
                 }`}
               >
-                {link.label}
+                {t(link.key)}
               </Link>
             );
           })}
+          <span className="ml-1.5">
+            <LanguageToggle />
+          </span>
         </div>
       </nav>
     </header>

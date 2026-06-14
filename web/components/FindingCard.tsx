@@ -2,7 +2,9 @@
 
 import type { ReactNode } from "react";
 import type { Finding } from "@/lib/types";
-import { CATEGORY_LABEL, SEVERITY_STYLE } from "@/lib/format";
+import { SEVERITY_STYLE } from "@/lib/format";
+import { useI18n } from "@/lib/i18n";
+import { localizeFinding } from "@/lib/findings-i18n";
 import { SeverityPill } from "./Badges";
 import { ChevronIcon } from "./icons";
 
@@ -26,7 +28,9 @@ export function FindingCard({
   open: boolean;
   onToggle: () => void;
 }) {
+  const { t, lang } = useI18n();
   const style = SEVERITY_STYLE[finding.severity];
+  const text = localizeFinding(finding, lang);
 
   return (
     <div
@@ -46,15 +50,15 @@ export function FindingCard({
           <div className="flex flex-wrap items-center gap-2">
             <SeverityPill severity={finding.severity} />
             <span className="micro-label text-faint">
-              {CATEGORY_LABEL[finding.category]}
+              {t(`category.${finding.category}`)}
             </span>
             {finding.nestedPath && (
               <span className="truncate font-mono text-[11px] text-faint">
-                in {finding.nestedPath}
+                {t("finding.in")} {finding.nestedPath}
               </span>
             )}
           </div>
-          <p className="mt-1.5 font-medium text-ink">{finding.title}</p>
+          <p className="mt-1.5 font-medium text-ink">{text.title}</p>
         </div>
         {finding.evidence && !open && (
           <code className="hidden max-w-[14rem] truncate rounded border border-line bg-bg px-2 py-1 font-mono text-[11px] text-muted lg:block">
@@ -76,22 +80,22 @@ export function FindingCard({
         <div className="overflow-hidden">
           <div className="space-y-3.5 border-t border-line px-4 py-4 pl-[1.875rem]">
             <p className="text-sm leading-relaxed text-ink/90">
-              {finding.description}
+              {text.description}
             </p>
 
             <dl className="space-y-2">
               {finding.location && (
-                <DetailRow label="location">
+                <DetailRow label={t("finding.location")}>
                   <span className="text-info">{finding.location}</span>
                 </DetailRow>
               )}
               {finding.evidence && (
-                <DetailRow label="evidence">
+                <DetailRow label={t("finding.evidence")}>
                   <span className="text-muted">{finding.evidence}</span>
                 </DetailRow>
               )}
               {finding.relatedRuleIds && finding.relatedRuleIds.length > 0 && (
-                <DetailRow label="correlated">
+                <DetailRow label={t("finding.correlated")}>
                   <span className="text-warning">
                     {finding.relatedRuleIds.join(", ")}
                   </span>
@@ -99,19 +103,19 @@ export function FindingCard({
               )}
             </dl>
 
-            {finding.recommendation && (
+            {text.recommendation && (
               <div className="border-l-2 border-primary/60 pl-3 text-sm leading-relaxed text-ink/85">
                 <span className="font-medium text-primary">
-                  Recommendation —{" "}
+                  {t("finding.recommendation")}{" "}
                 </span>
-                {finding.recommendation}
+                {text.recommendation}
               </div>
             )}
 
             <div className="flex items-center gap-3 pt-0.5 font-mono text-[11px] text-faint">
               <span>{finding.ruleId}</span>
               {finding.scoreImpact > 0 && (
-                <span>−{finding.scoreImpact} pts</span>
+                <span>{t("finding.pts", { n: finding.scoreImpact })}</span>
               )}
             </div>
           </div>

@@ -2,6 +2,9 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
+import { SiteFooter } from "@/components/SiteFooter";
+import { ThreeBackground } from "@/components/ThreeBackground";
+import { LanguageProvider } from "@/lib/i18n";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -35,20 +38,13 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans">
-        <div className="bg-decor" aria-hidden />
-        <Navbar />
-        <main className="flex-1">{children}</main>
-        <footer className="mt-24 border-t border-line">
-          <div className="container-page flex flex-col gap-2 py-6 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-xs text-muted">
-              PluginGuard — risk-based static analysis. Not a guarantee of
-              safety.
-            </p>
-            <p className="micro-label text-faint">
-              static bytecode analysis · isolated sandbox
-            </p>
-          </div>
-        </footer>
+        <LanguageProvider>
+          <ThreeBackground />
+          <div className="bg-decor" aria-hidden />
+          <Navbar />
+          <main className="flex-1">{children}</main>
+          <SiteFooter />
+        </LanguageProvider>
       </body>
     </html>
   );

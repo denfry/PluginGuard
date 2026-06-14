@@ -1,4 +1,7 @@
-import { SEVERITY_STYLE, VERDICT_LABEL, verdictColor } from "@/lib/format";
+"use client";
+
+import { SEVERITY_STYLE, verdictColor } from "@/lib/format";
+import { useI18n } from "@/lib/i18n";
 import type { Severity, Verdict } from "@/lib/types";
 
 /** Verdict rendered as a forensic "stamp": monospace, uppercase, letterspaced. */
@@ -9,6 +12,7 @@ export function VerdictBadge({
   verdict: Verdict;
   size?: "md" | "lg";
 }) {
+  const { t } = useI18n();
   const color = verdictColor(verdict);
   const sizing =
     size === "lg"
@@ -19,19 +23,20 @@ export function VerdictBadge({
       className={`inline-flex items-center gap-2 rounded-md border border-current/40 bg-current/10 font-mono font-medium uppercase ${sizing} ${color}`}
     >
       <span className="h-1.5 w-1.5 rounded-full bg-current" />
-      {VERDICT_LABEL[verdict]}
+      {t(`verdict.${verdict}`)}
     </span>
   );
 }
 
 export function SeverityPill({ severity }: { severity: Severity }) {
+  const { t } = useI18n();
   const s = SEVERITY_STYLE[severity];
   return (
     <span
       className={`inline-flex items-center gap-1.5 rounded border px-1.5 py-0.5 font-mono text-[10px] font-medium uppercase tracking-[0.1em] ${s.text} ${s.bg} ${s.border}`}
     >
       <span className={`h-1 w-1 rounded-full ${s.dot}`} />
-      {s.label}
+      {t(`severity.${severity}`)}
     </span>
   );
 }

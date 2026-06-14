@@ -141,6 +141,51 @@ export interface SandboxReport {
   note: string | null;
 }
 
+export type ProvenanceStatus =
+  | "DISABLED"
+  | "PENDING"
+  | "RUNNING"
+  | "VERIFIED"
+  | "TAMPERED"
+  | "NOT_FOUND"
+  | "UNVERIFIED"
+  | "SKIPPED"
+  | "FAILED";
+
+export interface ProvenanceMatch {
+  source: string;
+  projectName: string | null;
+  projectUrl: string | null;
+  matchedVersion: string | null;
+  officialFileName: string | null;
+  officialHash: string | null;
+  downloadUrl: string | null;
+  hashMatched: boolean;
+}
+
+export interface ClassDiff {
+  officialClassCount: number;
+  uploadedClassCount: number;
+  addedClasses: string[];
+  modifiedClasses: string[];
+  removedClasses: string[];
+  truncated: boolean;
+}
+
+export interface ProvenanceReport {
+  status: ProvenanceStatus;
+  startedAt: string | null;
+  finishedAt: string | null;
+  durationMs: number;
+  pluginName: string | null;
+  pluginVersion: string | null;
+  match: ProvenanceMatch | null;
+  diff: ClassDiff | null;
+  sourcesQueried: string[];
+  caveats: string[];
+  note: string | null;
+}
+
 export interface ScanResult {
   id: string;
   fileName: string;
@@ -162,4 +207,5 @@ export interface ScanResult {
   durationMs: number;
   engineVersion: string;
   sandbox: SandboxReport | null;
+  provenance: ProvenanceReport | null;
 }

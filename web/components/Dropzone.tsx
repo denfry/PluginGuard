@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import { ApiError, MAX_UPLOAD_BYTES, scanFile } from "@/lib/api";
 import { formatBytes } from "@/lib/format";
+import { useI18n } from "@/lib/i18n";
 import { UploadIcon, AlertIcon } from "./icons";
 
 /** Plugins/mods are .jar; resource/data packs are .zip (.mcpack/.litemod also accepted). */
@@ -33,6 +34,7 @@ function Corner({ pos, out }: { pos: "tl" | "tr" | "bl" | "br"; out: boolean }) 
 
 export function Dropzone() {
   const router = useRouter();
+  const { t } = useI18n();
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -54,11 +56,11 @@ export function Dropzone() {
   async function handleFile(file: File) {
     setError(null);
     if (!ACCEPTED_EXTENSIONS.some((ext) => file.name.toLowerCase().endsWith(ext))) {
-      setError("Please choose a plugin/mod .jar or a resource/data pack .zip.");
+      setError(t("dropzone.badExt"));
       return;
     }
     if (file.size > MAX_UPLOAD_BYTES) {
-      setError(`File is too large (${formatBytes(file.size)}). Max is 50 MB.`);
+      setError(t("dropzone.tooLarge", { size: formatBytes(file.size) }));
       return;
     }
     setElapsed(0);
@@ -70,7 +72,7 @@ export function Dropzone() {
     } catch (e) {
       setBusy(false);
       setFileLabel(null);
-      setError(e instanceof ApiError ? e.message : "Analysis failed.");
+      setError(e instanceof ApiError ? e.message : t("dropzone.failed"));
     }
   }
 
@@ -132,7 +134,7 @@ export function Dropzone() {
               />
               <span className="font-mono text-sm text-ink">{fileLabel}</span>
               <p className="font-display text-lg font-medium">
-                Scanning bytecode…
+                {t("dropzone.scanning")}
               </p>
               <span className="font-mono text-xs text-primary tabular-nums">
                 t+{elapsed.toFixed(1)}s
@@ -145,15 +147,14 @@ export function Dropzone() {
               </span>
               <div>
                 <p className="font-display text-xl font-medium">
-                  Drop a <span className="text-primary">.jar</span> or{" "}
-                  <span className="text-primary">.zip</span> to scan it
+                  {t("dropzone.title.a")} <span className="text-primary">.jar</span>{" "}
+                  {t("dropzone.title.or")}{" "}
+                  <span className="text-primary">.zip</span> {t("dropzone.title.b")}
                 </p>
-                <p className="mt-1.5 text-sm text-muted">
-                  plugin · mod · resource / data pack · up to 50 MB
-                </p>
+                <p className="mt-1.5 text-sm text-muted">{t("dropzone.kinds")}</p>
               </div>
-              <span className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-bg transition hover:brightness-110">
-                Choose file
+              <span className="btn-sheen rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-bg transition hover:brightness-110">
+                {t("dropzone.choose")}
               </span>
             </>
           )}
@@ -168,7 +169,7 @@ export function Dropzone() {
       )}
 
       <p className="micro-label mt-4 text-center text-faint">
-        analyzed in isolation — nothing runs on your server
+        {t("dropzone.isolated")}
       </p>
     </div>
   );

@@ -2,16 +2,22 @@
 
 import { useState } from "react";
 import type { DynamicFinding, SandboxReport } from "@/lib/types";
-import {
-  SANDBOX_STATUS_LABEL,
-  SEVERITY_STYLE,
-  behaviorTypeLabel,
-} from "@/lib/format";
+import { SEVERITY_STYLE } from "@/lib/format";
+import { useI18n, type TFunction } from "@/lib/i18n";
+import { localizeFinding } from "@/lib/findings-i18n";
 import { Panel } from "./Panel";
 import { SeverityPill } from "./Badges";
 import { EyeIcon, ChevronIcon } from "./icons";
 
+/** Localized behaviour-type label, falling back to the raw type for anything unmapped. */
+function behaviorLabel(t: TFunction, type: string): string {
+  const key = `behavior.${type}`;
+  const value = t(key);
+  return value === key ? type : value;
+}
+
 function StatusBadge({ report }: { report: SandboxReport }) {
+  const { t } = useI18n();
   const { status } = report;
   const tone =
     status === "COMPLETED"
@@ -31,7 +37,7 @@ function StatusBadge({ report }: { report: SandboxReport }) {
       {running && (
         <span className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
       )}
-      {SANDBOX_STATUS_LABEL[status]}
+      {t(`sandboxStatus.${status}`)}
     </span>
   );
 }
@@ -58,7 +64,9 @@ function Chip({
 }
 
 function DynamicFindingRow({ finding }: { finding: DynamicFinding }) {
+  const { t, lang } = useI18n();
   const style = SEVERITY_STYLE[finding.severity];
+  const text = localizeFinding(finding, lang);
   return (
     <div className="overflow-hidden rounded-lg border border-line bg-bg/60">
       <div className="flex gap-3 px-4 py-3.5">
@@ -69,35 +77,35 @@ function DynamicFindingRow({ finding }: { finding: DynamicFinding }) {
           <div className="flex flex-wrap items-center gap-2">
             <SeverityPill severity={finding.severity} />
             <span className="micro-label text-faint">
-              {behaviorTypeLabel(finding.eventType)}
+              {behaviorLabel(t, finding.eventType)}
             </span>
             {finding.correlation === "DYNAMIC_ONLY" ? (
-              <Chip tone="danger">New — static missed it</Chip>
+              <Chip tone="danger">{t("sandbox.newMissed")}</Chip>
             ) : (
-              <Chip tone="neutral">Confirms static</Chip>
+              <Chip tone="neutral">{t("sandbox.confirms")}</Chip>
             )}
-            {finding.blocked && <Chip tone="primary">Blocked</Chip>}
+            {finding.blocked && <Chip tone="primary">{t("sandbox.blocked")}</Chip>}
             {finding.occurrences > 1 && (
               <span className="font-mono text-[11px] text-faint">
                 ×{finding.occurrences}
               </span>
             )}
           </div>
-          <p className="font-medium text-ink">{finding.title}</p>
+          <p className="font-medium text-ink">{text.title}</p>
           {finding.target && (
             <code className="block max-w-full truncate rounded border border-line bg-bg px-2 py-1 font-mono text-xs text-muted">
               {finding.target}
             </code>
           )}
           <p className="text-sm leading-relaxed text-ink/80">
-            {finding.description}
+            {text.description}
           </p>
-          {finding.recommendation && (
+          {text.recommendation && (
             <div className="border-l-2 border-primary/60 pl-3 text-sm leading-relaxed text-ink/85">
               <span className="font-medium text-primary">
-                Recommendation —{" "}
+                {t("sandbox.recommendation")}{" "}
               </span>
-              {finding.recommendation}
+              {text.recommendation}
             </div>
           )}
         </div>
@@ -107,6 +115,7 @@ function DynamicFindingRow({ finding }: { finding: DynamicFinding }) {
 }
 
 function BehaviorTrail({ report }: { report: SandboxReport }) {
+  const { t } = useI18n();
   const [open, setOpen] = useState(false);
   if (report.behaviorEvents.length === 0) return null;
   return (
@@ -117,8 +126,10 @@ function BehaviorTrail({ report }: { report: SandboxReport }) {
         className="flex w-full items-center justify-between px-4 py-2.5 text-left transition-colors hover:bg-card"
       >
         <span className="micro-label text-muted">
-          Behavior trail — {report.behaviorEventCount} event
-          {report.behaviorEventCount === 1 ? "" : "s"}
+          {t("sandbox.trail", {
+            n: report.behaviorEventCount,
+            s: report.behaviorEventCount === 1 ? "" : "s",
+          })}
         </span>
         <ChevronIcon
           className={`h-4 w-4 text-faint transition-transform duration-200 ${open ? "rotate-180" : ""}`}
@@ -129,14 +140,14 @@ function BehaviorTrail({ report }: { report: SandboxReport }) {
           {report.behaviorEvents.map((e, i) => (
             <li key={i} className="flex items-center gap-3 px-4 py-2 text-xs">
               <span className="w-40 shrink-0 font-mono text-muted">
-                {behaviorTypeLabel(e.type)}
+                {behaviorLabel(t, e.type)}
               </span>
               <code className="flex-1 truncate font-mono text-ink/70">
                 {e.target ?? e.detail ?? ""}
               </code>
               {e.blocked && (
                 <span className="micro-label shrink-0 text-primary">
-                  blocked
+                  {t("sandbox.blockedLower")}
                 </span>
               )}
             </li>
@@ -148,6 +159,7 @@ function BehaviorTrail({ report }: { report: SandboxReport }) {
 }
 
 export function SandboxPanel({ report }: { report: SandboxReport }) {
+  const { t } = useI18n();
   // The sandbox feature being off is not interesting to surface prominently.
   if (report.status === "DISABLED") return null;
 
@@ -159,35 +171,27 @@ export function SandboxPanel({ report }: { report: SandboxReport }) {
 
   return (
     <Panel
-      title="dynamic sandbox"
+      title={t("sandbox.title")}
       icon={<EyeIcon className="h-4 w-4" />}
       action={<StatusBadge report={report} />}
     >
       <div className="space-y-4">
-        <p className="text-xs leading-relaxed text-muted">
-          The plugin was executed in an isolated, network-blocked container and
-          its real behavior recorded. This catches reflection-built or decoded
-          actions that static analysis cannot see.
-        </p>
+        <p className="text-xs leading-relaxed text-muted">{t("sandbox.intro")}</p>
 
         {(report.status === "RUNNING" || report.status === "PENDING") && (
           <p className="text-sm text-info">
-            {report.note ?? "Running the plugin in the sandbox…"} This page
-            refreshes automatically.
+            {report.note ?? t("sandbox.running")} {t("sandbox.runningSuffix")}
           </p>
         )}
 
         {inactive && (
           <p className="text-sm text-muted">
-            {report.note ?? "No dynamic analysis was performed."}
+            {report.note ?? t("sandbox.inactive")}
           </p>
         )}
 
         {report.status === "COMPLETED" && findings.length === 0 && (
-          <p className="text-sm text-muted">
-            No dangerous runtime behavior was observed in the code paths that
-            were triggered.
-          </p>
+          <p className="text-sm text-muted">{t("sandbox.clean")}</p>
         )}
 
         {findings.length > 0 && (
@@ -203,7 +207,7 @@ export function SandboxPanel({ report }: { report: SandboxReport }) {
         {report.caveats.length > 0 && (
           <details className="text-xs text-muted">
             <summary className="micro-label cursor-pointer select-none text-faint transition-colors hover:text-muted">
-              What a sandbox can and cannot prove
+              {t("sandbox.caveatsSummary")}
             </summary>
             <ul className="mt-2 list-disc space-y-1.5 pl-4 leading-relaxed">
               {report.caveats.map((c, i) => (

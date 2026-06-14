@@ -4,14 +4,15 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import type { ScanResult } from "@/lib/types";
 import { ApiError, getDemo, getReport } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
 import { ReportView } from "./ReportView";
 import { AlertIcon } from "./icons";
 
 /** Loading placeholder shaped like the report it is about to become. */
-function ReportSkeleton() {
+function ReportSkeleton({ label }: { label: string }) {
   return (
     <div className="container-page space-y-6 py-10" aria-busy="true">
-      <span className="sr-only">Loading report…</span>
+      <span className="sr-only">{label}</span>
       <div className="animate-pulse rounded-xl border border-line bg-card p-6">
         <div className="flex flex-col gap-10 lg:flex-row lg:items-center">
           <div className="flex-1 space-y-5">
@@ -40,6 +41,7 @@ function ReportSkeleton() {
 }
 
 export function ReportClient({ id, demo }: { id?: string; demo?: boolean }) {
+  const { t } = useI18n();
   const [report, setReport] = useState<ScanResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,19 +54,20 @@ export function ReportClient({ id, demo }: { id?: string; demo?: boolean }) {
         (e) =>
           active &&
           setError(
-            e instanceof ApiError ? e.message : "Could not load this report.",
+            e instanceof ApiError ? e.message : t("reportClient.loadError"),
           ),
       );
     return () => {
       active = false;
     };
-  }, [id, demo]);
+  }, [id, demo, t]);
 
-  // While the dynamic sandbox job is still running, re-fetch the report until it settles.
+  // While an async job (dynamic sandbox or online authenticity) is still running, re-fetch the
+  // report until both settle.
   useEffect(() => {
     if (demo || !report) return;
-    const status = report.sandbox?.status;
-    if (status !== "PENDING" && status !== "RUNNING") return;
+    const pending = (s?: string) => s === "PENDING" || s === "RUNNING";
+    if (!pending(report.sandbox?.status) && !pending(report.provenance?.status)) return;
     const timer = setTimeout(() => {
       getReport(id as string)
         .then(setReport)
@@ -83,24 +86,22 @@ export function ReportClient({ id, demo }: { id?: string; demo?: boolean }) {
             <AlertIcon className="h-10 w-10" />
           </span>
           <h1 className="mt-4 font-display text-lg font-semibold">
-            Report unavailable
+            {t("reportClient.unavailable")}
           </h1>
           <p className="mt-2 text-sm text-muted">{error}</p>
-          <p className="mt-1.5 text-xs text-faint">
-            Reports are kept in memory and expire when the analyzer restarts.
-          </p>
+          <p className="mt-1.5 text-xs text-faint">{t("reportClient.expire")}</p>
           <Link
             href="/"
-            className="mt-6 inline-flex rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-bg transition hover:brightness-110"
+            className="btn-sheen mt-6 inline-flex rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-bg transition hover:brightness-110"
           >
-            Scan a plugin
+            {t("reportClient.scanCta")}
           </Link>
         </div>
       </div>
     );
   }
 
-  if (!report) return <ReportSkeleton />;
+  if (!report) return <ReportSkeleton label={t("reportClient.loading")} />;
 
   return <ReportView report={report} />;
 }

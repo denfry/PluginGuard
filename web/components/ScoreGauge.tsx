@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { scoreStroke } from "@/lib/format";
+import { useI18n } from "@/lib/i18n";
 
 const CENTER = 100;
 const RADIUS = 78;
@@ -10,7 +11,10 @@ const SWEEP = 270;
 
 function polar(angleDeg: number, radius: number): [number, number] {
   const a = (angleDeg * Math.PI) / 180;
-  return [CENTER + radius * Math.cos(a), CENTER + radius * Math.sin(a)];
+  // Round to fixed precision so server- and client-rendered SVG attributes serialize identically
+  // (full-precision floats stringify differently across runtimes and trigger hydration warnings).
+  const round = (n: number) => Math.round(n * 1000) / 1000;
+  return [round(CENTER + radius * Math.cos(a)), round(CENTER + radius * Math.sin(a))];
 }
 
 function arcPath(fromDeg: number, toDeg: number, radius: number): string {
@@ -45,6 +49,7 @@ function Ticks() {
 }
 
 export function ScoreGauge({ score }: { score: number }) {
+  const { t } = useI18n();
   const clamped = Math.max(0, Math.min(100, score));
   const stroke = scoreStroke(clamped);
   // Start at zero and let the CSS transition sweep the needle up on mount.
@@ -88,7 +93,7 @@ export function ScoreGauge({ score }: { score: number }) {
         >
           {clamped}
         </span>
-        <span className="micro-label mt-1 text-faint">safety / 100</span>
+        <span className="micro-label mt-1 text-faint">{t("report.gaugeLabel")}</span>
       </div>
     </div>
   );

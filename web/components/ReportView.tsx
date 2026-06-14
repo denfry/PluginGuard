@@ -3,11 +3,13 @@
 import { useMemo, useState, type ReactNode } from "react";
 import type { ScanResult, Severity } from "@/lib/types";
 import { formatBytes, SEVERITY_ORDER, SEVERITY_STYLE } from "@/lib/format";
+import { useI18n } from "@/lib/i18n";
 import { ScoreGauge } from "./ScoreGauge";
 import { VerdictBadge, SeverityStat } from "./Badges";
 import { Panel } from "./Panel";
 import { FindingCard } from "./FindingCard";
 import { SandboxPanel } from "./SandboxPanel";
+import { ProvenancePanel } from "./ProvenancePanel";
 import {
   AlertIcon,
   BoxIcon,
@@ -61,6 +63,7 @@ function HairlineList({ items, empty }: { items: string[]; empty: string }) {
 }
 
 function CopyHashButton({ value }: { value: string }) {
+  const { t } = useI18n();
   const [copied, setCopied] = useState(false);
   return (
     <button
@@ -73,7 +76,7 @@ function CopyHashButton({ value }: { value: string }) {
           })
           .catch(() => {});
       }}
-      aria-label="Copy SHA-256"
+      aria-label={t("report.copySha")}
       className={`shrink-0 rounded-md border border-line p-1.5 transition-colors ${
         copied ? "text-primary" : "text-faint hover:border-line-strong hover:text-ink"
       }`}
@@ -103,15 +106,6 @@ function SegmentBar({ value }: { value: number }) {
   );
 }
 
-/** Compact labels so the five-stat row fits a phone screen. */
-const SHORT_LABEL: Record<Severity, string> = {
-  CRITICAL: "Crit",
-  HIGH: "High",
-  MEDIUM: "Med",
-  LOW: "Low",
-  INFO: "Info",
-};
-
 const FILTERS: { key: Severity; countKey: keyof ScanResult["counts"] }[] = [
   { key: "CRITICAL", countKey: "critical" },
   { key: "HIGH", countKey: "high" },
@@ -121,6 +115,7 @@ const FILTERS: { key: Severity; countKey: keyof ScanResult["counts"] }[] = [
 ];
 
 export function ReportView({ report }: { report: ScanResult }) {
+  const { t } = useI18n();
   const { counts, pluginInfo, summaries } = report;
   const findings = report.findings;
 
@@ -177,7 +172,7 @@ export function ReportView({ report }: { report: ScanResult }) {
             </div>
 
             <div className="flex min-w-0 items-center gap-2.5">
-              <span className="micro-label shrink-0 text-faint">sha-256</span>
+              <span className="micro-label shrink-0 text-faint">{t("report.sha")}</span>
               <code className="truncate font-mono text-xs text-muted">
                 {report.sha256}
               </code>
@@ -185,11 +180,11 @@ export function ReportView({ report }: { report: ScanResult }) {
             </div>
 
             <dl className="grid grid-cols-2 gap-x-8 gap-y-4 sm:grid-cols-3">
-              <MetaRow label="platform" value={report.platform} />
-              <MetaRow label="size" value={formatBytes(report.sizeBytes)} />
-              <MetaRow label="mc api" value={report.mcApiVersion ?? "—"} />
+              <MetaRow label={t("report.platform")} value={report.platform} />
+              <MetaRow label={t("report.size")} value={formatBytes(report.sizeBytes)} />
+              <MetaRow label={t("report.mcApi")} value={report.mcApiVersion ?? "—"} />
               <MetaRow
-                label="main class"
+                label={t("report.mainClass")}
                 value={
                   <span className="font-mono text-xs">
                     {report.mainClass ?? "—"}
@@ -197,7 +192,7 @@ export function ReportView({ report }: { report: ScanResult }) {
                 }
               />
               <MetaRow
-                label="classes / methods"
+                label={t("report.classesMethods")}
                 value={
                   <span className="tabular-nums">
                     {summaries.classCount} / {summaries.methodCount}
@@ -205,7 +200,7 @@ export function ReportView({ report }: { report: ScanResult }) {
                 }
               />
               <MetaRow
-                label="analyzed in"
+                label={t("report.analyzedIn")}
                 value={<span className="tabular-nums">{report.durationMs} ms</span>}
               />
             </dl>
@@ -217,7 +212,7 @@ export function ReportView({ report }: { report: ScanResult }) {
               {FILTERS.map(({ key, countKey }) => (
                 <SeverityStat
                   key={key}
-                  label={SHORT_LABEL[key]}
+                  label={t(`severityShort.${key}`)}
                   value={counts[countKey]}
                   dotClass={SEVERITY_STYLE[key].dot}
                 />
@@ -230,60 +225,60 @@ export function ReportView({ report }: { report: ScanResult }) {
       {/* Metadata + summaries */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Panel
-          title={pluginInfo?.descriptorFile ?? "descriptor"}
+          title={pluginInfo?.descriptorFile ?? t("report.descriptor")}
           icon={<FileIcon className="h-4 w-4" />}
         >
           {pluginInfo ? (
             <div className="space-y-4">
               <dl className="grid grid-cols-2 gap-3">
-                <MetaRow label="name" value={pluginInfo.name ?? "—"} />
-                <MetaRow label="version" value={pluginInfo.version ?? "—"} />
+                <MetaRow label={t("report.name")} value={pluginInfo.name ?? "—"} />
+                <MetaRow label={t("report.version")} value={pluginInfo.version ?? "—"} />
               </dl>
               <div className="space-y-1.5">
-                <p className="micro-label text-faint">authors</p>
-                <TagList items={pluginInfo.authors} empty="None declared" />
+                <p className="micro-label text-faint">{t("report.authors")}</p>
+                <TagList items={pluginInfo.authors} empty={t("report.noneDeclared")} />
               </div>
               {report.artifactType.startsWith("PLUGIN") && (
                 <>
                   <div className="space-y-1.5">
-                    <p className="micro-label text-faint">commands</p>
-                    <TagList items={pluginInfo.commands} empty="None" />
+                    <p className="micro-label text-faint">{t("report.commands")}</p>
+                    <TagList items={pluginInfo.commands} empty={t("report.none")} />
                   </div>
                   <div className="space-y-1.5">
-                    <p className="micro-label text-faint">permissions</p>
-                    <TagList items={pluginInfo.permissions} empty="None" />
+                    <p className="micro-label text-faint">{t("report.permissions")}</p>
+                    <TagList items={pluginInfo.permissions} empty={t("report.none")} />
                   </div>
                 </>
               )}
               <div className="space-y-1.5">
-                <p className="micro-label text-faint">dependencies</p>
+                <p className="micro-label text-faint">{t("report.dependencies")}</p>
                 <TagList
                   items={[...pluginInfo.depend, ...pluginInfo.softDepend]}
-                  empty="None"
+                  empty={t("report.none")}
                 />
               </div>
             </div>
           ) : (
-            <p className="text-sm text-faint">No descriptor found.</p>
+            <p className="text-sm text-faint">{t("report.noDescriptor")}</p>
           )}
         </Panel>
 
-        <Panel title="network" icon={<NetworkIcon className="h-4 w-4" />}>
+        <Panel title={t("report.network")} icon={<NetworkIcon className="h-4 w-4" />}>
           <HairlineList
             items={summaries.network}
-            empty="No network indicators found."
+            empty={t("report.noNetwork")}
           />
         </Panel>
 
-        <Panel title="filesystem" icon={<FolderIcon className="h-4 w-4" />}>
+        <Panel title={t("report.filesystem")} icon={<FolderIcon className="h-4 w-4" />}>
           <HairlineList
             items={summaries.filesystem}
-            empty="No notable filesystem paths."
+            empty={t("report.noFilesystem")}
           />
         </Panel>
 
         <Panel
-          title="dependencies"
+          title={t("report.dependencies")}
           icon={<BoxIcon className="h-4 w-4" />}
           className="lg:col-span-2"
         >
@@ -300,31 +295,27 @@ export function ReportView({ report }: { report: ScanResult }) {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-faint">
-              No bundled dependencies detected.
-            </p>
+            <p className="text-sm text-faint">{t("report.noDeps")}</p>
           )}
         </Panel>
 
-        <Panel title="obfuscation" icon={<EyeIcon className="h-4 w-4" />}>
+        <Panel title={t("report.obfuscation")} icon={<EyeIcon className="h-4 w-4" />}>
           <div className="flex items-end gap-2">
             <span className="font-display text-3xl font-semibold tabular-nums">
               {report.obfuscationScore}
             </span>
-            <span className="mb-1 text-sm text-faint">/ 100</span>
+            <span className="mb-1 text-sm text-faint">{t("report.outOf")}</span>
           </div>
           <div className="mt-3">
             <SegmentBar value={report.obfuscationScore} />
           </div>
-          <p className="mt-2.5 text-xs text-muted">
-            Higher means more obfuscated. Not malicious on its own.
-          </p>
+          <p className="mt-2.5 text-xs text-muted">{t("report.obfNote")}</p>
         </Panel>
       </div>
 
       {/* Findings */}
       <Panel
-        title={`findings — ${findings.length}`}
+        title={t("report.findings", { n: findings.length })}
         icon={<AlertIcon className="h-4 w-4" />}
         action={
           findings.length > 0 ? (
@@ -333,21 +324,21 @@ export function ReportView({ report }: { report: ScanResult }) {
                 onClick={() => setAll(true)}
                 className="transition-colors hover:text-ink"
               >
-                Expand all
+                {t("report.expandAll")}
               </button>
               <span aria-hidden>/</span>
               <button
                 onClick={() => setAll(false)}
                 className="transition-colors hover:text-ink"
               >
-                Collapse all
+                {t("report.collapseAll")}
               </button>
             </div>
           ) : undefined
         }
       >
         {findings.length === 0 ? (
-          <p className="text-sm text-faint">No findings.</p>
+          <p className="text-sm text-faint">{t("report.noFindings")}</p>
         ) : (
           <div className="space-y-5">
             {/* Severity filter */}
@@ -360,7 +351,7 @@ export function ReportView({ report }: { report: ScanResult }) {
                     : "border-line text-muted hover:text-ink"
                 }`}
               >
-                All <span className="tabular-nums">{findings.length}</span>
+                {t("report.all")} <span className="tabular-nums">{findings.length}</span>
               </button>
               {FILTERS.filter(({ countKey }) => counts[countKey] > 0).map(
                 ({ key, countKey }) => {
@@ -376,7 +367,7 @@ export function ReportView({ report }: { report: ScanResult }) {
                           : "border-line text-muted hover:text-ink"
                       }`}
                     >
-                      {s.label}{" "}
+                      {t(`severity.${key}`)}{" "}
                       <span className="tabular-nums">{counts[countKey]}</span>
                     </button>
                   );
@@ -391,7 +382,7 @@ export function ReportView({ report }: { report: ScanResult }) {
                   <div className="flex items-center gap-3">
                     <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
                     <span className={`micro-label ${s.text}`}>
-                      {s.label} — {group.items.length}
+                      {t(`severity.${group.sev}`)} — {group.items.length}
                     </span>
                     <span className="h-px flex-1 bg-line" />
                   </div>
@@ -410,10 +401,12 @@ export function ReportView({ report }: { report: ScanResult }) {
         )}
       </Panel>
 
+      {report.provenance && <ProvenancePanel report={report.provenance} />}
+
       {report.sandbox && <SandboxPanel report={report.sandbox} />}
 
       {report.notes.length > 0 && (
-        <Panel title="engine notes">
+        <Panel title={t("report.engineNotes")}>
           <ul className="space-y-1.5 text-sm text-muted">
             {report.notes.map((n, i) => (
               <li key={i} className="flex gap-2">
@@ -428,11 +421,15 @@ export function ReportView({ report }: { report: ScanResult }) {
       )}
 
       <p className="micro-label text-center leading-5 text-faint">
-        analyzed in {report.durationMs} ms · engine v{report.engineVersion} ·{" "}
-        {report.sandbox &&
-        ["RUNNING", "COMPLETED", "FAILED"].includes(report.sandbox.status)
-          ? "static analysis + isolated sandbox run"
-          : "static analysis — the plugin was never executed"}
+        {t("report.footer.line", {
+          ms: report.durationMs,
+          v: report.engineVersion,
+          mode:
+            report.sandbox &&
+            ["RUNNING", "COMPLETED", "FAILED"].includes(report.sandbox.status)
+              ? t("report.footer.sandbox")
+              : t("report.footer.static"),
+        })}
       </p>
     </div>
   );
