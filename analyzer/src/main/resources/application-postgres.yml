@@ -1,0 +1,13 @@
+# PostgreSQL profile — activate with SPRING_PROFILES_ACTIVE=postgres.
+# Re-enables the JDBC/Flyway auto-configuration excluded by default and points the analyzer at a
+# database, so reports survive restarts (JdbcScanStore + ScanRetentionJob become active).
+spring:
+  autoconfigure:
+    exclude: []          # clear the default in-memory excludes
+  datasource:
+    url: ${PLUGINGUARD_DB_URL}                       # e.g. jdbc:postgresql://postgres:5432/pluginguard
+    username: ${PLUGINGUARD_DB_USER:pluginguard}
+    password: ${PLUGINGUARD_DB_PASSWORD:pluginguard}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration

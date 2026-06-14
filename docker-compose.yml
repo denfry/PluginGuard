@@ -1,4 +1,18 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: pluginguard
+      POSTGRES_USER: pluginguard
+      POSTGRES_PASSWORD: pluginguard
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pluginguard -d pluginguard"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
   analyzer:
     build:
       context: ./analyzer
@@ -9,6 +23,15 @@ services:
       # Allow the web app (served from the host browser) to call the API.
       # Spring relaxed binding: pluginguard.cors.allowed-origins -> PLUGINGUARD_CORS_ALLOWEDORIGINS
       PLUGINGUARD_CORS_ALLOWEDORIGINS: "http://localhost:3000,http://127.0.0.1:3000"
+      # Durable persistence: enable the `postgres` profile and point it at the db service.
+      # Reports now survive analyzer restarts (Flyway creates the schema on first boot).
+      SPRING_PROFILES_ACTIVE: "postgres"
+      PLUGINGUARD_DB_URL: "jdbc:postgresql://postgres:5432/pluginguard"
+      PLUGINGUARD_DB_USER: "pluginguard"
+      PLUGINGUARD_DB_PASSWORD: "pluginguard"
+    depends_on:
+      postgres:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8080/api/health"]
       interval: 10s
@@ -26,3 +49,6 @@ services:
       - "3000:3000"
     depends_on:
       - analyzer
+
+volumes:
+  pg-data:

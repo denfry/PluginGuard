@@ -1,35 +1,26 @@
 package dev.pluginguard.api;
 
 import dev.pluginguard.engine.model.ScanResult;
-import org.springframework.stereotype.Component;
 
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
 import java.util.Optional;
 
 /**
- * In-memory, bounded store of recent reports so the UI can fetch a report by id after upload.
- * Reports are ephemeral (lost on restart); a durable database is a later phase.
+ * Persistence port for analyzed reports so the UI can fetch a report by id after upload.
+ *
+ * <p>Two implementations exist, selected by Spring profile:
+ * <ul>
+ *   <li>{@link InMemoryScanStore} — default; ephemeral, bounded, lost on restart.</li>
+ *   <li>{@link JdbcScanStore} — active under the {@code postgres} profile; durable.</li>
+ * </ul>
+ *
+ * <p>{@link #put(ScanResult)} has <strong>upsert</strong> semantics: the async sandbox updates a
+ * report in place (PENDING → RUNNING → COMPLETED), so storing an existing id replaces it.
  */
-@Component
-public class ScanStore {
+public interface ScanStore {
 
-    private static final int MAX_REPORTS = 500;
+    /** Stores a report, replacing any existing report with the same id (upsert). */
+    void put(ScanResult result);
 
-    private final Map<String, ScanResult> reports = Collections.synchronizedMap(
-            new LinkedHashMap<>(16, 0.75f, false) {
-                @Override
-                protected boolean removeEldestEntry(Map.Entry<String, ScanResult> eldest) {
-                    return size() > MAX_REPORTS;
-                }
-            });
-
-    public void put(ScanResult result) {
-        reports.put(result.id(), result);
-    }
-
-    public Optional<ScanResult> get(String id) {
-        return Optional.ofNullable(reports.get(id));
-    }
+    /** Returns the stored report for {@code id}, or empty if none. */
+    Optional<ScanResult> get(String id);
 }

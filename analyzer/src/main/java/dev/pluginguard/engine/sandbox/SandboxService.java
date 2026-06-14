@@ -49,14 +49,29 @@ public class SandboxService {
         this.store = store;
     }
 
+    /** Entitled by default — preserves behavior for callers without a plan (default profile). */
+    public ScanResult attach(ScanResult result, byte[] jarBytes) {
+        return attach(result, jarBytes, true);
+    }
+
     /**
      * Attaches the initial sandbox section to a freshly produced static report and, if a run is
      * warranted, launches it asynchronously. Returns immediately.
+     *
+     * @param sandboxEntitled whether the caller's plan includes dynamic analysis. When {@code false}
+     *                        (e.g. the free tier) the run is skipped even if the sandbox is globally
+     *                        enabled — the dynamic sandbox is a paid feature.
      */
-    public ScanResult attach(ScanResult result, byte[] jarBytes) {
+    public ScanResult attach(ScanResult result, byte[] jarBytes, boolean sandboxEntitled) {
         if (!cfg.isEnabled()) {
             return result.withSandbox(
                     SandboxReport.of(SandboxStatus.DISABLED, "Dynamic sandbox is disabled.", List.of()),
+                    result.verdict(), result.notes());
+        }
+        if (!sandboxEntitled) {
+            return result.withSandbox(
+                    SandboxReport.of(SandboxStatus.SKIPPED,
+                            "Dynamic analysis is available on the Pro and Business plans.", mapper.caveats()),
                     result.verdict(), result.notes());
         }
         if (result.mainClass() == null || result.mainClass().isBlank()) {

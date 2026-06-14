@@ -14,6 +14,8 @@ public class AnalyzerProperties {
     private Limits limits = new Limits();
     private SupplyChain supplyChain = new SupplyChain();
     private Sandbox sandbox = new Sandbox();
+    private Retention retention = new Retention();
+    private Api api = new Api();
 
     public Cors getCors() { return cors; }
     public void setCors(Cors cors) { this.cors = cors; }
@@ -23,6 +25,37 @@ public class AnalyzerProperties {
     public void setSupplyChain(SupplyChain supplyChain) { this.supplyChain = supplyChain; }
     public Sandbox getSandbox() { return sandbox; }
     public void setSandbox(Sandbox sandbox) { this.sandbox = sandbox; }
+    public Retention getRetention() { return retention; }
+    public void setRetention(Retention retention) { this.retention = retention; }
+    public Api getApi() { return api; }
+    public void setApi(Api api) { this.api = api; }
+
+    /**
+     * Report retention. Applies only under the {@code postgres} profile (the in-memory store is
+     * self-bounded). {@code ScanRetentionJob} purges reports older than the TTL on a schedule.
+     */
+    public static class Retention {
+        /** Reports older than this are purged; {@code <= 0} disables retention. */
+        private int reportTtlDays = 30;
+
+        public int getReportTtlDays() { return reportTtlDays; }
+        public void setReportTtlDays(int reportTtlDays) { this.reportTtlDays = reportTtlDays; }
+    }
+
+    /**
+     * B2B API platform (keys, metering, quotas). Active only under the {@code postgres} profile.
+     */
+    public static class Api {
+        /** Static token guarding {@code POST /api/admin/*} provisioning; blank disables those endpoints. */
+        private String adminToken = "";
+        /** Keyless (free-tier) scans allowed per client IP per day; {@code <= 0} disables the limit. */
+        private int anonymousDailyLimit = 200;
+
+        public String getAdminToken() { return adminToken; }
+        public void setAdminToken(String adminToken) { this.adminToken = adminToken; }
+        public int getAnonymousDailyLimit() { return anonymousDailyLimit; }
+        public void setAnonymousDailyLimit(int anonymousDailyLimit) { this.anonymousDailyLimit = anonymousDailyLimit; }
+    }
 
     public static class Cors {
         /** Comma-separated list of origins allowed to call the API. */

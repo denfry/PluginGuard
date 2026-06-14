@@ -31,6 +31,13 @@ dependencies {
     // SnakeYAML for plugin.yml parsing (version managed by Spring Boot BOM)
     implementation("org.yaml:snakeyaml")
 
+    // Persistence — active only under the `postgres` profile (see application-postgres.yml).
+    // The default profile excludes the JDBC/Flyway auto-configuration so no database is required.
+    implementation("org.springframework.boot:spring-boot-starter-jdbc")
+    runtimeOnly("org.postgresql:postgresql")
+    implementation("org.flywaydb:flyway-core")
+    implementation("org.flywaydb:flyway-database-postgresql")
+
     testImplementation("org.springframework.boot:spring-boot-starter-test")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }

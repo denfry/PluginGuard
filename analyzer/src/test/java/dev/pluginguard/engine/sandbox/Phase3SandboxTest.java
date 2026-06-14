@@ -1,5 +1,6 @@
 package dev.pluginguard.engine.sandbox;
 
+import dev.pluginguard.api.InMemoryScanStore;
 import dev.pluginguard.api.ScanStore;
 import dev.pluginguard.config.AnalyzerProperties;
 import dev.pluginguard.engine.model.ArtifactType;
@@ -169,7 +170,7 @@ class Phase3SandboxTest {
     @Test
     void enabledSandboxRunsAsynchronouslyAndUpdatesTheStore() throws Exception {
         AnalyzerProperties props = enabledProps();
-        ScanStore store = new ScanStore();
+        ScanStore store = new InMemoryScanStore();
         SandboxOutcome canned = SandboxOutcome.completed(List.of(
                 new BehaviorEvent("NETWORK_CONNECT", "evil.com:443", null, null, true)), null);
         SandboxService service = new SandboxService(props, new StubRunner(canned), store);
@@ -182,6 +183,18 @@ class Phase3SandboxTest {
         assertThat(finalStatus).isEqualTo(SandboxStatus.COMPLETED);
         SandboxReport sb = store.get(pending.id()).orElseThrow().sandbox();
         assertThat(sb.dynamicFindings()).anyMatch(f -> f.eventType().equals("NETWORK_CONNECT"));
+    }
+
+    @Test
+    void unentitledCallerSkipsSandboxEvenWhenGloballyEnabled() {
+        SandboxService service = service(SandboxOutcome.completed(List.of(), null), enabledProps());
+
+        // sandboxEntitled = false → free tier: static only, even with a runnable main class.
+        ScanResult after = service.attach(
+                sample("com.example.Main", Verdict.LOW_RISK, List.of()), new byte[]{1}, false);
+
+        assertThat(after.sandbox().status()).isEqualTo(SandboxStatus.SKIPPED);
+        assertThat(after.sandbox().note()).contains("Pro");
     }
 
     // ---- helpers ---------------------------------------------------------------------------
@@ -204,7 +217,7 @@ class Phase3SandboxTest {
     }
 
     private static SandboxService service(SandboxOutcome outcome, AnalyzerProperties props) {
-        return new SandboxService(props, new StubRunner(outcome), new ScanStore());
+        return new SandboxService(props, new StubRunner(outcome), new InMemoryScanStore());
     }
 
     private static ScanResult sample(String mainClass, Verdict verdict, List<Finding> findings) {

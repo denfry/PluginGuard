@@ -11,6 +11,13 @@ spring:
       # Hard upload ceiling. The JarLoader enforces additional uncompressed-size / zip-bomb guards.
       max-file-size: 50MB
       max-request-size: 55MB
+  # Persistence is opt-in via the `postgres` profile (SPRING_PROFILES_ACTIVE=postgres). By default
+  # the analyzer runs with an in-memory store, so the JDBC/Flyway auto-configuration is excluded to
+  # avoid requiring a database at startup. The `postgres` profile clears these excludes.
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration
+      - org.springframework.boot.autoconfigure.flyway.FlywayAutoConfiguration
 
 pluginguard:
   cors:
@@ -35,6 +42,14 @@ pluginguard:
     retries: 1
     known-malicious-source: ""                 # local file path or http(s) URL (one SHA-256 per line)
     known-good-source: ""                      # local file path or http(s) URL (one SHA-256 per line)
+  retention:
+    # Stored reports older than this are purged on a schedule (postgres profile only).
+    # 0 or negative disables retention (reports are kept indefinitely).
+    report-ttl-days: 30
+  api:
+    # B2B API keys, metering and quotas — only active under the `postgres` profile.
+    admin-token: ""              # set (env PLUGINGUARD_API_ADMINTOKEN) to enable POST /api/admin/* provisioning
+    anonymous-daily-limit: 200   # free, keyless scans per client IP per day (0 disables the limit)
   sandbox:
     # Phase 3 dynamic sandbox. OFF by default — it actually EXECUTES the uploaded plugin inside a
     # hardened, non-root, network-isolated Docker container. The static analyzer never runs the jar.

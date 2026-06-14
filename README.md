@@ -113,6 +113,28 @@ docker compose up --build
 # web → http://localhost:3000   analyzer → http://localhost:8080
 ```
 
+`docker compose` also starts PostgreSQL and runs the analyzer with persistence enabled, so reports
+survive restarts (see below).
+
+### Persistence
+
+By default the analyzer keeps reports **in-memory** (bounded, ephemeral — lost on restart). No
+database is required for local dev or tests.
+
+To make reports durable, activate the `postgres` profile and point it at a database:
+
+```bash
+SPRING_PROFILES_ACTIVE=postgres \
+PLUGINGUARD_DB_URL=jdbc:postgresql://localhost:5432/pluginguard \
+PLUGINGUARD_DB_USER=pluginguard \
+PLUGINGUARD_DB_PASSWORD=pluginguard \
+./gradlew bootRun
+```
+
+Flyway creates the schema on first boot; the full `ScanResult` is stored as JSONB. Reports older
+than `pluginguard.retention.report-ttl-days` (default 30) are purged hourly. The bundled
+`docker compose` wires this up automatically.
+
 ---
 
 ## Sample plugins
@@ -133,12 +155,40 @@ on a real server). Drag either into the scanner to see a report.
 | Method | Path | Description |
 |--------|------|-------------|
 | `POST` | `/api/scan` | multipart `file` (`.jar` plugin/mod, or `.zip`/`.mcpack`/`.litemod` pack) → full `ScanResult` JSON |
-| `GET`  | `/api/scan/{id}` | a previously generated report (in-memory, ephemeral) |
+| `POST` | `/api/scan/batch` | multipart `files` (up to 50) → list of compact per-file summaries; a failed file is an error entry, not a 4xx. Keyed feature under the `postgres` profile |
+| `GET`  | `/api/scan/{id}` | a previously generated report (in-memory by default; durable under the `postgres` profile) |
 | `GET`  | `/api/demo` | a fixed illustrative report |
 | `GET`  | `/api/health` | liveness |
 
 ```bash
 curl -F "file=@sample-plugins/FreeRanks-2.3.jar" http://localhost:8080/api/scan
+```
+
+### Authenticated API & quotas (postgres profile)
+
+Under the `postgres` profile the analyzer gains a B2B API layer (off entirely in the default
+profile, so the public web flow is unchanged). `POST /api/scan` accepts an **optional** API key:
+
+- **No key** — free tier, rate-limited per client IP (`pluginguard.api.anonymous-daily-limit`).
+- **`Authorization: Bearer pg_live_…`** — the request is metered against the organization's monthly
+  plan quota; over-quota returns `429`, an invalid key `401`.
+
+The **dynamic sandbox** (below) is a paid feature under this profile: only Pro/Business keys trigger
+a dynamic run; the free/anonymous tier gets static analysis only (the sandbox section reports
+`SKIPPED`). The default in-memory profile is unaffected — the global `pluginguard.sandbox.enabled`
+flag governs as before.
+
+Keys are provisioned by an admin token (`pluginguard.api.admin-token`, env
+`PLUGINGUARD_API_ADMINTOKEN`); only a SHA-256 hash of each key is stored.
+
+```bash
+# 1. create an org, 2. mint a key (shown once), 3. scan with it
+ORG=$(curl -s -X POST localhost:8080/api/admin/orgs -H "X-Admin-Token: $ADMIN" \
+      -H 'Content-Type: application/json' -d '{"name":"Acme","plan":"PRO"}' | jq -r .id)
+KEY=$(curl -s -X POST localhost:8080/api/admin/orgs/$ORG/keys -H "X-Admin-Token: $ADMIN" \
+      -H 'Content-Type: application/json' -d '{"name":"ci"}' | jq -r .key)
+curl -F "file=@sample-plugins/FreeRanks-2.3.jar" -H "Authorization: Bearer $KEY" \
+     http://localhost:8080/api/scan
 ```
 
 ---
