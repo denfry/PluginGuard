@@ -62,6 +62,28 @@ class CallGraphTest {
         assertThat(reach).containsKey(CallGraph.key("com/x/R", "loop"));
     }
 
+    @Test
+    void multiEntrypointKeepsHottestHeatAndShortestDistance() {
+        // HotFar(HOT) -> A -> B -> Shared (distance 3 from HOT); WarmNear(WARM) -> Shared (distance 1 from WARM).
+        List<ClassScan> classes = scanAll(new JarBuilder()
+                .addClass("com/x/HotFar", "hot", JarBuilder.calls(new JarBuilder.Call("com/x/A", "a")), List.of())
+                .addClass("com/x/A", "a", JarBuilder.calls(new JarBuilder.Call("com/x/B", "b")), List.of())
+                .addClass("com/x/B", "b", JarBuilder.calls(new JarBuilder.Call("com/x/Shared", "shared")), List.of())
+                .addClass("com/x/WarmNear", "warm", JarBuilder.calls(new JarBuilder.Call("com/x/Shared", "shared")), List.of())
+                .addClass("com/x/Shared", "shared", JarBuilder.calls(), List.of())
+                .build());
+
+        CallGraph graph = new CallGraph(classes);
+        Map<String, CallGraph.Reach> reach = graph.reachableFrom(List.of(
+                new HotEntrypoint("com/x/HotFar", "hot", Heat.HOT),
+                new HotEntrypoint("com/x/WarmNear", "warm", Heat.WARM)), 5);
+
+        CallGraph.Reach shared = reach.get(CallGraph.key("com/x/Shared", "shared"));
+        assertThat(shared).isNotNull();
+        assertThat(shared.heat()).isEqualTo(Heat.HOT);
+        assertThat(shared.distance()).isEqualTo(1);
+    }
+
     private static List<ClassScan> scanAll(byte[] jar) {
         List<ClassScan> out = new java.util.ArrayList<>();
         try (var zis = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(jar))) {

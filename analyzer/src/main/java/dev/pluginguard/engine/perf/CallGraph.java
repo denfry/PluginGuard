@@ -4,7 +4,6 @@ import dev.pluginguard.engine.bytecode.ClassScan;
 import dev.pluginguard.engine.bytecode.Invocation;
 
 import java.util.ArrayDeque;
-import java.util.ArrayList;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -25,8 +24,6 @@ public final class CallGraph {
     public record Reach(Heat heat, int distance) {
     }
 
-    /** Method names declared in the jar, grouped by owner internal name. */
-    private final Map<String, Set<String>> methodsByOwner = new HashMap<>();
     /** Adjacency: caller node key -> set of in-jar callee node keys. */
     private final Map<String, Set<String>> edges = new HashMap<>();
 
@@ -34,8 +31,6 @@ public final class CallGraph {
         Set<String> jarOwners = new HashSet<>();
         for (ClassScan c : classes) {
             jarOwners.add(c.internalName());
-            Set<String> names = methodsByOwner.computeIfAbsent(c.internalName(), k -> new HashSet<>());
-            c.methods().forEach(m -> names.add(m.name()));
         }
         for (ClassScan c : classes) {
             for (Invocation inv : c.invocations()) {
@@ -55,20 +50,19 @@ public final class CallGraph {
     }
 
     /**
-     * BFS from each hot entrypoint up to {@code maxDepth}. The returned map holds every reachable
-     * method (including the entrypoints at distance 0) with its best heat and shortest distance.
+     * BFS from each hot entrypoint up to {@code maxDepth}. Every reachable method (including the
+     * entrypoints at distance 0) is recorded with the HOTTEST heat and the SHORTEST distance seen,
+     * merged independently — they may come from different paths. A node is re-queued whenever either
+     * improves, so the result is independent of edge/arrival order. Improvements are monotone (heat
+     * only gets hotter, distance only gets shorter) and bounded, so the BFS always terminates.
      */
     public Map<String, Reach> reachableFrom(List<HotEntrypoint> entrypoints, int maxDepth) {
         Map<String, Reach> result = new HashMap<>();
         Deque<String> queue = new ArrayDeque<>();
-        Map<String, Heat> entryHeat = new HashMap<>();
 
         for (HotEntrypoint ep : entrypoints) {
             String k = key(ep.classInternalName(), ep.methodName());
-            // Seed; if seen twice keep the hotter.
-            if (!result.containsKey(k) || hotter(ep.heat(), result.get(k).heat())) {
-                result.put(k, new Reach(ep.heat(), 0));
-                entryHeat.put(k, ep.heat());
+            if (merge(result, k, ep.heat(), 0)) {
                 queue.add(k);
             }
         }
@@ -79,17 +73,30 @@ public final class CallGraph {
             if (here.distance() >= maxDepth) {
                 continue;
             }
+            int nextDist = here.distance() + 1;
             for (String next : edges.getOrDefault(node, Set.of())) {
-                Reach existing = result.get(next);
-                int nextDist = here.distance() + 1;
-                if (existing == null || nextDist < existing.distance() || hotter(here.heat(), existing.heat())) {
-                    result.put(next, new Reach(here.heat(), Math.min(nextDist,
-                            existing == null ? nextDist : existing.distance())));
+                if (merge(result, next, here.heat(), nextDist)) {
                     queue.add(next);
                 }
             }
         }
         return result;
+    }
+
+    /** Merge a candidate (heat, distance) into a node's best-known reach; returns true if it improved. */
+    private static boolean merge(Map<String, Reach> result, String key, Heat heat, int distance) {
+        Reach existing = result.get(key);
+        if (existing == null) {
+            result.put(key, new Reach(heat, distance));
+            return true;
+        }
+        Heat bestHeat = hotter(heat, existing.heat()) ? heat : existing.heat();
+        int bestDist = Math.min(distance, existing.distance());
+        if (bestHeat == existing.heat() && bestDist == existing.distance()) {
+            return false;
+        }
+        result.put(key, new Reach(bestHeat, bestDist));
+        return true;
     }
 
     private static boolean hotter(Heat a, Heat b) {
