@@ -4,8 +4,8 @@
 
 Upload an artifact and PluginGuard shows what it *really* does before you install it: dangerous
 bytecode calls, network indicators, credential-theft markers, known-malware signatures, obfuscation,
-bundled dependencies and descriptor validation — distilled into a 0–100 security score, a verdict and
-an itemised report.
+bundled dependencies and descriptor validation — distilled into a multi-axis fitness report (security,
+performance, …) with an install recommendation and an itemised breakdown by axis.
 
 It auto-detects the artifact kind and analyzes each accordingly:
 
@@ -15,6 +15,13 @@ It auto-detects the artifact kind and analyzes each accordingly:
 | **Mod** | `.jar` | Forge/NeoForge (`mods.toml`), Fabric/Quilt (`fabric.mod.json`/`quilt.mod.json`) — same bytecode engine + coremod/transformer & access-widener checks |
 | **Resource pack** | `.zip` | `pack.mcmeta`, disguised payloads, phishing text, zip-slip, shaders (assets only — cannot run code) |
 | **Data pack** | `.zip` | `.mcfunction` command scanning: auto-run `load`/`tick` tags, `op` commands, lag loops, phishing `tellraw` links |
+
+**Multi-axis fitness report:** Each artifact is scored across independent **security** and **performance**
+axes, each yielding a 0–100 score and contributing to an overall **install recommendation** — a signal
+combining all axes, except that a Critical security finding acts as an unconditional **security veto**
+(install not recommended, regardless of performance score). This multi-axis view separates concerns:
+a plugin may have low security risk but high performance risk (e.g. heavy sync I/O in event handlers),
+and the system reflects both in a transparent, actionable way.
 
 > ⚠️ **Not a guarantee.** PluginGuard performs *static* analysis and reports **risk**, not proof
 > of safety or malice. A clean scan is not a green light, and a high-risk finding is not always
@@ -53,6 +60,7 @@ treats a *combination* of capabilities as far more serious than any one of them 
 | **Dependencies** | Best-effort SBOM from `pom.properties` + nested JARs |
 | **CVE check** *(opt-in)* | Queries OSV.dev for known vulnerabilities in bundled `groupId:artifactId:version` dependencies; severity from CVSS/GHSA, links to the advisory; disk cache + offline fallback |
 | **Reputation** *(opt-in)* | Matches the JAR's (and nested JARs') SHA-256 against pull-able known-malicious (Critical) / known-good (info) lists |
+| **Performance (lag risk)** | Static prediction of TPS impact: blocking I/O (JDBC/HTTP/file), `Thread.sleep`, sync chunk loads and other heavy work reachable from hot paths (event handlers, repeating sync tasks) — scored as its own axis, never mixed into the security score |
 | **Dynamic sandbox** *(opt-in)* | **Executes** the plugin in a hardened, non-root, `--network none` Docker container with an instrumented JVM + mock Paper harness; records real process/socket/file/reflection/`defineClass` behavior, cross-checks it against the static findings (confirmed vs. *runtime-only*), and floors the verdict on dynamic Critical/High evidence |
 
 > 🧪 **Honest residual risk.** Deciding whether an arbitrary program is malicious is undecidable
@@ -66,6 +74,11 @@ treats a *combination* of capabilities as far more serious than any one of them 
 > The dynamic sandbox (below) runs **server plugins only** — mods, resource packs and data packs
 > receive deep *static* analysis but are never executed, and resource packs are inherently low-risk
 > (assets, no code). A clean static scan of a mod is therefore not a guarantee.
+>
+> **Performance analysis caveat:** Static analysis predicts *risk of lag*, not measured TPS or real-world
+> impact. It cannot see actual load patterns, data sizes, async/non-blocking library use, or JVM optimizations.
+> Deep call-graph findings (e.g. "blocking I/O reachable from tick loop") carry lower confidence than
+> direct bytecode rule matches and should be weighed against the plugin's known behavior and load profile.
 
 ---
 
