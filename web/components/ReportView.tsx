@@ -2,7 +2,8 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import type { ScanResult, Severity } from "@/lib/types";
-import { formatBytes, SEVERITY_ORDER, SEVERITY_STYLE } from "@/lib/format";
+import { formatBytes, RECOMMENDATION_LABEL, recommendationColor, SEVERITY_ORDER, SEVERITY_STYLE } from "@/lib/format";
+import { AxisScores } from "@/components/AxisScores";
 import { ScoreGauge } from "./ScoreGauge";
 import { VerdictBadge, SeverityStat } from "./Badges";
 import { Panel } from "./Panel";
@@ -226,6 +227,23 @@ export function ReportView({ report }: { report: ScanResult }) {
           </div>
         </div>
       </Panel>
+
+      {report.recommendation && (
+        <div className="mt-4 rounded-md border border-line bg-panel/40 p-4">
+          <div className="flex items-center gap-2">
+            <span className="micro-label text-faint">Recommendation</span>
+            <span className={`font-display text-lg font-semibold ${recommendationColor(report.recommendation.level)}`}>
+              {RECOMMENDATION_LABEL[report.recommendation.level]}
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-muted">{report.recommendation.headline}</p>
+        </div>
+      )}
+      {report.axes && report.axes.length > 0 && (
+        <div className="mt-4">
+          <AxisScores axes={report.axes} />
+        </div>
+      )}
 
       {/* Metadata + summaries */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
