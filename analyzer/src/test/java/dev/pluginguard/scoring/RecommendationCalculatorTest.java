@@ -58,4 +58,13 @@ class RecommendationCalculatorTest {
                 axis(Axis.PERFORMANCE, Verdict.MEDIUM_RISK)));
         assertThat(r.level()).isEqualTo(RecommendationLevel.INSTALL_WITH_CARE);
     }
+
+    @Test
+    void nonSecurityHighFindingIsRisky() {
+        // A perf axis whose worst finding is HIGH (verdict floored to MEDIUM_RISK) must still be RISKY.
+        Recommendation r = calc.recommend(List.of(
+                new AxisScore(Axis.SECURITY, 90, Verdict.MINIMAL_RISK, new SeverityCounts(0, 0, 0, 0, 0), "x"),
+                new AxisScore(Axis.PERFORMANCE, 55, Verdict.MEDIUM_RISK, new SeverityCounts(0, 1, 0, 0, 0), "x")));
+        assertThat(r.level()).isEqualTo(RecommendationLevel.RISKY);
+    }
 }

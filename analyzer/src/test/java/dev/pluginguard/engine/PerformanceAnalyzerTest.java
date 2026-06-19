@@ -81,4 +81,16 @@ class PerformanceAnalyzerTest {
         ScanResult result = engine.analyze("p4", "t.jar", jar);
         assertThat(result.findings()).noneMatch(f -> f.category() == Category.PERFORMANCE);
     }
+
+    @Test
+    void fabricTickSinkSurfacesAsPerformanceFinding() {
+        // A Fabric mod with a blocking Thread.sleep in its per-tick callback must produce a PERFORMANCE finding.
+        byte[] jar = new JarBuilder()
+                .addClass("com/mod/Ticker", "onEndTick",
+                        JarBuilder.calls(new JarBuilder.Call("java/lang/Thread", "sleep")), List.of())
+                .addResource("fabric.mod.json", "{\"schemaVersion\":1,\"id\":\"m\",\"version\":\"1.0\"}")
+                .build();
+        ScanResult result = engine.analyze("pf-fabric", "mod.jar", jar);
+        assertThat(result.findings()).anyMatch(f -> f.category() == Category.PERFORMANCE);
+    }
 }

@@ -15,7 +15,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Turns findings into a 0–100 security score (higher = safer).
+ * Turns findings into a 0–100 score (higher = safer); also scores each axis independently via
+ * {@link #scoreByAxis(java.util.List)}.
  *
  * <p>Starting from 100, each distinct rule deducts its {@code scoreImpact} once, plus a bounded
  * surcharge for repeated occurrences (up to +75% of the base impact). Grouping by rule prevents a

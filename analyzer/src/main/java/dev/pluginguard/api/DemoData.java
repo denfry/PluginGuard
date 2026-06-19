@@ -102,8 +102,8 @@ public final class DemoData {
                         "1 serious performance issue(s)"));
 
         Recommendation recommendation = new Recommendation(
-                RecommendationLevel.INSTALL_WITH_CARE,
-                "Usable, but review the external webhook and the database query on the server thread.",
+                RecommendationLevel.RISKY,
+                "Security is fine, but a database query on the server thread is a high lag risk — review before installing.",
                 List.of(
                         "Security: Low Risk — 1 serious security issue(s)",
                         "Performance: Medium Risk — 1 serious performance issue(s)"));

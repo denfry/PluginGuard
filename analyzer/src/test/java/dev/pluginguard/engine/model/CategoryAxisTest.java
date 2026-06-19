@@ -1,4 +1,3 @@
-// analyzer/src/test/java/dev/pluginguard/engine/model/CategoryAxisTest.java
 package dev.pluginguard.engine.model;
 
 import org.junit.jupiter.api.Test;

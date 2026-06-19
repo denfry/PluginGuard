@@ -19,7 +19,7 @@ export function AxisScores({ axes }: { axes: AxisScore[] }) {
             >
               {a.score}
             </span>
-            <span className={`text-xs ${verdictColor(a.verdict)}`}>{a.verdict.replace("_", " ")}</span>
+            <span className={`text-xs ${verdictColor(a.verdict)}`}>{a.verdict.replace(/_/g, " ")}</span>
           </div>
           <div className="h-1 w-full overflow-hidden rounded-full bg-line">
             <div

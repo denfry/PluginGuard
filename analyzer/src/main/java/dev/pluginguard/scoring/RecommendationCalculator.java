@@ -8,6 +8,7 @@ import dev.pluginguard.engine.model.Verdict;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -34,29 +35,37 @@ public class RecommendationCalculator {
                     "High security risk — avoid unless you fully trust the source.", perAxis);
         }
 
-        // Worst non-security axis drives the rest.
+        // Worst non-security axis drives the rest, by effective severity level.
         AxisScore worst = axes.stream()
                 .filter(a -> a.axis() != Axis.SECURITY)
-                .max((x, y) -> Integer.compare(x.verdict().ordinal(), y.verdict().ordinal()))
+                .max(Comparator.comparingInt(RecommendationCalculator::axisLevel))
                 .orElse(null);
-        Verdict other = worst == null ? Verdict.MINIMAL_RISK : worst.verdict();
+        int level = worst == null ? 0 : axisLevel(worst);
         String axisName = worst == null ? "" : worst.axis().displayName().toLowerCase();
 
-        if (other == Verdict.CRITICAL_RISK) {
+        if (level >= 4) {
             return new Recommendation(RecommendationLevel.AVOID,
                     "Security looks clean, but a critical " + axisName + " risk makes this unsafe to run as-is.",
                     perAxis);
         }
-        if (other == Verdict.HIGH_RISK) {
+        if (level == 3) {
             return new Recommendation(RecommendationLevel.RISKY,
                     "Security looks clean, but there is a high " + axisName + " risk — review before installing.",
                     perAxis);
         }
-        if (other == Verdict.MEDIUM_RISK) {
+        if (level == 2) {
             return new Recommendation(RecommendationLevel.INSTALL_WITH_CARE,
                     "No serious issues, but some " + axisName + " concerns — install with care.", perAxis);
         }
         return new Recommendation(RecommendationLevel.SAFE_TO_INSTALL,
                 "No significant security or quality concerns were found in static analysis.", perAxis);
+    }
+
+    /** Effective severity level of a non-security axis: 4=critical, 3=high, 2=medium, 0=none. */
+    private static int axisLevel(AxisScore a) {
+        if (a.counts().critical() > 0 || a.verdict() == Verdict.CRITICAL_RISK) return 4;
+        if (a.counts().high() > 0 || a.verdict() == Verdict.HIGH_RISK) return 3;
+        if (a.counts().medium() > 0 || a.verdict() == Verdict.MEDIUM_RISK) return 2;
+        return 0;
     }
 }
