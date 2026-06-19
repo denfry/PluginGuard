@@ -1,4 +1,4 @@
-import type { Category, SandboxStatus, Severity, Verdict } from "./types";
+import type { Axis, Category, RecommendationLevel, SandboxStatus, Severity, Verdict } from "./types";
 
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -131,6 +131,37 @@ export const SANDBOX_STATUS_LABEL: Record<SandboxStatus, string> = {
   UNAVAILABLE: "Unavailable",
   FAILED: "Failed",
 };
+
+export const AXIS_LABEL: Record<Axis, string> = {
+  SECURITY: "Security",
+  PERFORMANCE: "Performance",
+  COMPATIBILITY: "Compatibility",
+  HEALTH: "Code health",
+  LICENSE: "Legal / license",
+};
+
+export const RECOMMENDATION_LABEL: Record<RecommendationLevel, string> = {
+  SAFE_TO_INSTALL: "Safe to install",
+  INSTALL_WITH_CARE: "Install with care",
+  RISKY: "Risky",
+  AVOID: "Avoid",
+  DO_NOT_INSTALL: "Do not install",
+};
+
+/** Tailwind text colour for the overall recommendation banner. */
+export function recommendationColor(level: RecommendationLevel): string {
+  switch (level) {
+    case "SAFE_TO_INSTALL":
+      return "text-primary";
+    case "INSTALL_WITH_CARE":
+      return "text-info";
+    case "RISKY":
+      return "text-warning";
+    case "AVOID":
+    case "DO_NOT_INSTALL":
+      return "text-danger";
+  }
+}
 
 /** Human label for a dynamic behavior-event type (also used for dynamic findings). */
 export function behaviorTypeLabel(type: string): string {
