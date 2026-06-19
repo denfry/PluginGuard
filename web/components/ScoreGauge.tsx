@@ -53,7 +53,7 @@ function Ticks() {
   return <>{ticks}</>;
 }
 
-export function ScoreGauge({ score }: { score: number }) {
+export function ScoreGauge({ score, label = "safety / 100" }: { score: number; label?: string }) {
   const clamped = Math.max(0, Math.min(100, score));
   const stroke = scoreStroke(clamped);
   // Start at zero and let the arc + needle sweep up, and the number count up,
@@ -152,7 +152,7 @@ export function ScoreGauge({ score }: { score: number }) {
         >
           {display}
         </span>
-        <span className="micro-label mt-1 text-faint">safety / 100</span>
+        <span className="micro-label mt-1 text-faint">{label}</span>
       </div>
     </div>
   );
