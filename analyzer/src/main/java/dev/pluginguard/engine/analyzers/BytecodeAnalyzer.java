@@ -452,6 +452,16 @@ public class BytecodeAnalyzer implements Analyzer {
                 "Listens for inbound connections",
                 "Opens a ServerSocket to accept inbound network connections.",
                 "Verify why the plugin needs to listen for connections.", 12));
+        r.add(prefixMethodRule("BYTECODE_HTTP_SERVER", "com/sun/net/httpserver/",
+                Set.of("create", "bind", "start"),
+                Category.NETWORK, Severity.MEDIUM,
+                "Runs an embedded HTTP server (listens for connections)",
+                "Uses com.sun.net.httpserver.HttpServer/HttpsServer to bind a port and accept inbound HTTP "
+                        + "requests inside the JVM — a network listener and remote-control surface. Legitimate for "
+                        + "local bridges, metrics or debug endpoints, but it is also how a plugin/mod exposes game "
+                        + "or host control over HTTP, especially if it binds beyond 127.0.0.1 or skips authentication.",
+                "Check the bind address (127.0.0.1 vs 0.0.0.0), whether requests are authenticated, and what the "
+                        + "exposed endpoints can do.", 14));
         r.add(rule("BYTECODE_DATAGRAM_SOCKET", "java/net/DatagramSocket", Set.of("<init>"),
                 Category.NETWORK, Severity.MEDIUM,
                 "Opens UDP sockets",
@@ -581,6 +591,29 @@ public class BytecodeAnalyzer implements Analyzer {
                         + "On a client-side mod this is the exact value an account/session stealer exfiltrates; "
                         + "a server plugin has no legitimate reason to read it.",
                 "Treat as high risk on client mods — see whether the token is sent over the network.", 20));
+
+        // Fabric/NeoForge (Mojang-mapped) equivalents of the Bukkit console/op sinks above.
+        // CAVEAT: these match by name only when the jar ships Mojang ("named") mappings — NeoForge
+        // mods, or a Fabric mod built against a Mojmap runtime. A *production* Fabric jar is remapped
+        // to intermediary (e.g. Commands#performPrefixedCommand -> net/minecraft/class_2170#method_44252),
+        // so these names are absent there. Catching intermediary-mapped Minecraft sinks needs an
+        // intermediary->named mapping layer (per Minecraft version) that the engine does not yet have.
+        r.add(rule("BYTECODE_MC_COMMAND_DISPATCH", "net/minecraft/commands/Commands",
+                Set.of("performPrefixedCommand", "performCommand"),
+                Category.MINECRAFT, Severity.MEDIUM,
+                "Runs server commands programmatically",
+                "Calls Commands.performPrefixedCommand/performCommand, executing a server command from code via a "
+                        + "CommandSourceStack. Legitimate for admin tooling, but also the standard way a mod runs "
+                        + "arbitrary operator-level commands or grants itself operator rights.",
+                "Check which command string is executed and whether it can be influenced by network or chat input.", 14));
+        r.add(rule("BYTECODE_MC_SET_OP", "net/minecraft/server/players/PlayerList",
+                Set.of("op", "deop"),
+                Category.MINECRAFT, Severity.MEDIUM,
+                "Grants or revokes operator status in code",
+                "Calls PlayerList.op()/deop() to change a player's operator (full-admin) status from code. Common "
+                        + "in admin tooling, but granting op from code — especially to a fixed name or in response to "
+                        + "a hidden command/endpoint — is the core of an operator backdoor.",
+                "Confirm op is only granted to legitimately authorised players, never a fixed name or external input.", 16));
 
         return r;
     }
