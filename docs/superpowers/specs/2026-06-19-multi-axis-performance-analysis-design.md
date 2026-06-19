@@ -135,9 +135,10 @@ Interface `HotPathModel` → produces hot **entrypoints**: `(class, methodName)`
   `ServerTickEvents` / `ClientTickEvents` / world-tick callbacks.
 - **`ProxyHotPathModel`** (PLUGIN_BUNGEE / PLUGIN_VELOCITY): per-connection handlers
   (Bungee `@EventHandler`, Velocity `@Subscribe`). Proxies have no tick; heat is "per connection".
-- **`DataPackHotPathModel`** (DATA_PACK): no bytecode. Implemented as **re-routing**: existing
-  `PackAnalyzer` lag-loop / auto-run findings are emitted under (or duplicated to) `Category.PERFORMANCE`
-  so they feed the Performance axis. (PackAnalyzer keeps its security-relevant findings too.)
+- **`DataPackHotPathModel`** (DATA_PACK): no bytecode. For each existing `PackAnalyzer` lag-loop /
+  self-recursion finding, emit a **separate** mirror finding with `Category.PERFORMANCE` (its own
+  `ruleId`, e.g. `PERF_DATAPACK_LAG_LOOP`) so the Performance axis is fed. The original DATA_PACK
+  (security-axis) finding is left intact — no existing finding is moved or removed.
 
 If no model matches the artifact type (e.g. RESOURCE_PACK), the analyzer is a no-op.
 
