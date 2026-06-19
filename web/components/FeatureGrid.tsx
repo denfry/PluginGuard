@@ -54,13 +54,14 @@ export function FeatureGrid() {
         {FEATURES.map((f, i) => (
           <div
             key={f.title}
-            className="group bg-bg p-6 transition-colors duration-200 hover:bg-card"
+            className="feature-cell reveal group bg-bg p-6 transition-colors duration-200 hover:bg-card"
+            style={{ animationDelay: `${i * 0.06}s` }}
           >
             <div className="flex items-center justify-between">
               <span className="font-mono text-xs text-faint transition-colors duration-200 group-hover:text-primary">
                 {String(i + 1).padStart(2, "0")}
               </span>
-              <span className="text-faint transition-colors duration-200 group-hover:text-primary">
+              <span className="text-faint transition-all duration-200 group-hover:text-primary group-hover:drop-shadow-[0_0_7px_rgba(163,230,53,0.55)]">
                 {f.icon}
               </span>
             </div>

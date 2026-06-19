@@ -18,7 +18,7 @@ export function Navbar() {
     <header className="sticky top-0 z-30 border-b border-line bg-bg/85 backdrop-blur-md">
       <nav className="container-page flex h-14 items-center justify-between">
         <Link href="/" className="group flex items-center gap-2.5">
-          <span className="text-primary transition-transform duration-200 group-hover:scale-110">
+          <span className="text-primary transition-all duration-200 group-hover:scale-110 group-hover:drop-shadow-[0_0_8px_rgba(163,230,53,0.6)]">
             <ShieldIcon className="h-5 w-5" />
           </span>
           <span className="font-display text-base font-semibold tracking-tight">
@@ -33,12 +33,11 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className={`micro-label whitespace-nowrap rounded-md px-3 py-2 transition-colors ${
+                data-active={active}
+                className={`nav-underline micro-label whitespace-nowrap rounded-md px-3 py-2 transition-colors ${
                   link.desktopOnly ? "hidden sm:block" : ""
                 } ${
-                  active
-                    ? "text-primary"
-                    : "text-muted hover:bg-card hover:text-ink"
+                  active ? "text-primary" : "text-muted hover:text-ink"
                 }`}
               >
                 {link.label}

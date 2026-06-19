@@ -40,7 +40,11 @@ export function FindingCard({
         className="flex w-full items-center gap-3 px-4 py-3 text-left"
       >
         <span
-          className={`w-0.5 shrink-0 self-stretch rounded-full ${style.dot}`}
+          className={`w-0.5 shrink-0 self-stretch rounded-full ${style.dot} ${
+            finding.severity === "CRITICAL"
+              ? "shadow-[0_0_7px_rgba(251,113,133,0.9)]"
+              : ""
+          }`}
         />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">

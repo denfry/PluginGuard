@@ -9,6 +9,17 @@ import { UploadIcon, AlertIcon } from "./icons";
 /** Plugins/mods are .jar; resource/data packs are .zip (.mcpack/.litemod also accepted). */
 const ACCEPTED_EXTENSIONS = [".jar", ".zip", ".mcpack", ".litemod"];
 
+/** Cycled under the progress readout so a running scan feels alive (flavor, not real progress). */
+const SCAN_STAGES = [
+  "structure",
+  "bytecode",
+  "network indicators",
+  "dependencies",
+  "obfuscation",
+  "plugin.yml",
+  "sandbox",
+];
+
 /** Viewfinder corner bracket; spreads outward while dragging a file over the zone. */
 function Corner({ pos, out }: { pos: "tl" | "tr" | "bl" | "br"; out: boolean }) {
   const edges = {
@@ -39,6 +50,7 @@ export function Dropzone() {
   const [fileLabel, setFileLabel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [stage, setStage] = useState(0);
 
   // Elapsed-time readout while the analyzer is working.
   useEffect(() => {
@@ -47,6 +59,16 @@ export function Dropzone() {
     const id = setInterval(
       () => setElapsed((performance.now() - started) / 1000),
       100,
+    );
+    return () => clearInterval(id);
+  }, [busy]);
+
+  // Cycle the stage label while scanning (reset happens in handleFile on start).
+  useEffect(() => {
+    if (!busy) return;
+    const id = setInterval(
+      () => setStage((s) => (s + 1) % SCAN_STAGES.length),
+      700,
     );
     return () => clearInterval(id);
   }, [busy]);
@@ -62,6 +84,7 @@ export function Dropzone() {
       return;
     }
     setElapsed(0);
+    setStage(0);
     setBusy(true);
     setFileLabel(`${file.name} · ${formatBytes(file.size)}`);
     try {
@@ -104,7 +127,7 @@ export function Dropzone() {
             if ((e.key === "Enter" || e.key === " ") && !busy)
               inputRef.current?.click();
           }}
-          className={`relative flex min-h-[19rem] cursor-pointer flex-col items-center justify-center gap-4 overflow-hidden rounded-xl border border-dashed px-6 py-12 text-center transition-colors duration-200
+          className={`group relative flex min-h-[19rem] cursor-pointer flex-col items-center justify-center gap-4 overflow-hidden rounded-xl border border-dashed px-6 py-12 text-center transition-colors duration-200
             ${
               dragging
                 ? "border-primary/70 bg-primary/5"
@@ -128,11 +151,12 @@ export function Dropzone() {
             <>
               <span
                 aria-hidden
-                className="animate-scan h-px bg-gradient-to-r from-transparent via-primary to-transparent"
+                className="animate-scan h-px bg-gradient-to-r from-transparent via-primary to-transparent shadow-[0_0_12px_2px_rgba(163,230,53,0.5)]"
               />
               <span className="font-mono text-sm text-ink">{fileLabel}</span>
               <p className="font-display text-lg font-medium">
-                Scanning bytecode…
+                Scanning <span className="text-primary">{SCAN_STAGES[stage]}</span>
+                …
               </p>
               <span className="font-mono text-xs text-primary tabular-nums">
                 t+{elapsed.toFixed(1)}s
@@ -140,8 +164,19 @@ export function Dropzone() {
             </>
           ) : (
             <>
-              <span className="flex h-14 w-14 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary">
-                <UploadIcon className="h-6 w-6" />
+              <span className="relative flex h-14 w-14 items-center justify-center">
+                <span
+                  aria-hidden
+                  className="reticle-ping absolute inset-0 rounded-full border border-primary/40"
+                />
+                <span
+                  aria-hidden
+                  className="reticle-ping absolute inset-0 rounded-full border border-primary/30"
+                  style={{ animationDelay: "1.3s" }}
+                />
+                <span className="relative flex h-14 w-14 items-center justify-center rounded-full border border-primary/30 bg-primary/10 text-primary transition-transform duration-300 group-hover:scale-110">
+                  <UploadIcon className="h-6 w-6" />
+                </span>
               </span>
               <div>
                 <p className="font-display text-xl font-medium">
@@ -152,7 +187,7 @@ export function Dropzone() {
                   plugin · mod · resource / data pack · up to 50 MB
                 </p>
               </div>
-              <span className="rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-bg transition hover:brightness-110">
+              <span className="btn-primary inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm">
                 Choose file
               </span>
             </>

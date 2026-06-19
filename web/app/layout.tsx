@@ -36,6 +36,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col font-sans">
         <div className="bg-decor" aria-hidden />
+        <div className="bg-glow" aria-hidden />
         <Navbar />
         <main className="flex-1">{children}</main>
         <footer className="mt-24 border-t border-line">
