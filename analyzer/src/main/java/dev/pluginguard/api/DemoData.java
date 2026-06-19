@@ -89,11 +89,13 @@ public final class DemoData {
 
         int score = 78;
         SeverityCounts counts = SeverityCounts.from(findings);
+        SeverityCounts securityCounts = SeverityCounts.from(
+                findings.stream().filter(f -> f.category().axis() == Axis.SECURITY).toList());
 
         List<AxisScore> axes = List.of(
                 new AxisScore(
                         Axis.SECURITY, 78,
-                        Verdict.from(78, counts), counts, "1 serious security issue(s)"),
+                        Verdict.from(78, securityCounts), securityCounts, "1 serious security issue(s)"),
                 new AxisScore(
                         Axis.PERFORMANCE, 55,
                         Verdict.MEDIUM_RISK, new SeverityCounts(0, 1, 0, 0, 0),
