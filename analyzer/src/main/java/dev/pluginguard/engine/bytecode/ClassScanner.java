@@ -70,7 +70,7 @@ public final class ClassScanner {
         List<String> strings = new ArrayList<>();
 
         for (MethodNode method : node.methods) {
-            methods.add(new MethodInfo(method.name, method.desc));
+            methods.add(new MethodInfo(method.name, method.desc, annotationDescriptors(method)));
             scanMethod(node.name, method, constStringFields, invocations, strings);
         }
 
@@ -196,6 +196,22 @@ public final class ClassScanner {
                         out.put(f.owner + "." + f.name, s);
                     }
                 }
+            }
+        }
+        return out;
+    }
+
+    /** Descriptors of all (visible + invisible) annotations declared on a method. */
+    private static List<String> annotationDescriptors(MethodNode method) {
+        List<String> out = new ArrayList<>();
+        if (method.visibleAnnotations != null) {
+            for (var a : method.visibleAnnotations) {
+                out.add(a.desc);
+            }
+        }
+        if (method.invisibleAnnotations != null) {
+            for (var a : method.invisibleAnnotations) {
+                out.add(a.desc);
             }
         }
         return out;
