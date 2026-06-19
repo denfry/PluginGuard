@@ -2,16 +2,20 @@ package dev.pluginguard.engine;
 
 import dev.pluginguard.engine.bytecode.ClassScan;
 import dev.pluginguard.engine.bytecode.ClassScanner;
+import dev.pluginguard.engine.model.Axis;
+import dev.pluginguard.engine.model.AxisScore;
 import dev.pluginguard.engine.model.Category;
 import dev.pluginguard.engine.model.ClassFile;
 import dev.pluginguard.engine.model.Finding;
 import dev.pluginguard.engine.model.JarModel;
 import dev.pluginguard.engine.model.PluginInfo;
+import dev.pluginguard.engine.model.Recommendation;
 import dev.pluginguard.engine.model.ScanResult;
 import dev.pluginguard.engine.model.Severity;
 import dev.pluginguard.engine.model.SeverityCounts;
 import dev.pluginguard.engine.model.Summaries;
 import dev.pluginguard.engine.model.Verdict;
+import dev.pluginguard.scoring.RecommendationCalculator;
 import dev.pluginguard.scoring.ScoreCalculator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,7 +32,7 @@ import java.util.List;
 @Service
 public class AnalysisEngine {
 
-    public static final String ENGINE_VERSION = "0.1.0";
+    public static final String ENGINE_VERSION = "0.2.0";
 
     private static final Logger log = LoggerFactory.getLogger(AnalysisEngine.class);
 
@@ -40,11 +44,15 @@ public class AnalysisEngine {
     private final JarLoader jarLoader;
     private final List<Analyzer> analyzers;
     private final ScoreCalculator scoreCalculator;
+    private final RecommendationCalculator recommendationCalculator;
 
-    public AnalysisEngine(JarLoader jarLoader, List<Analyzer> analyzers, ScoreCalculator scoreCalculator) {
+    public AnalysisEngine(JarLoader jarLoader, List<Analyzer> analyzers,
+                          ScoreCalculator scoreCalculator,
+                          RecommendationCalculator recommendationCalculator) {
         this.jarLoader = jarLoader;
         this.analyzers = analyzers;
         this.scoreCalculator = scoreCalculator;
+        this.recommendationCalculator = recommendationCalculator;
     }
 
     public ScanResult analyze(String id, String fileName, byte[] data) {
@@ -69,9 +77,15 @@ public class AnalysisEngine {
         addProvenanceNotice(ctx);
 
         List<Finding> findings = ctx.findings().stream().sorted(FINDING_ORDER).toList();
-        int score = scoreCalculator.score(findings);
+        List<AxisScore> axes = scoreCalculator.scoreByAxis(findings);
+        AxisScore security = axes.stream()
+                .filter(a -> a.axis() == Axis.SECURITY)
+                .findFirst()
+                .orElse(null);
+        int score = security != null ? security.score() : scoreCalculator.score(findings);
         SeverityCounts counts = SeverityCounts.from(findings);
-        Verdict verdict = Verdict.from(score, counts);
+        Verdict verdict = security != null ? security.verdict() : Verdict.from(score, counts);
+        Recommendation recommendation = recommendationCalculator.recommend(axes);
         PluginInfo info = ctx.pluginInfo();
 
         Summaries summaries = new Summaries(
@@ -102,7 +116,9 @@ public class AnalysisEngine {
                 Instant.now(),
                 duration,
                 ENGINE_VERSION,
-                null); // dynamic sandbox section is attached later by SandboxService, if enabled
+                null, // dynamic sandbox section is attached later by SandboxService, if enabled
+                axes,
+                recommendation);
     }
 
     /**

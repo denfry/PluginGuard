@@ -214,7 +214,10 @@ class Phase3SandboxTest {
         Summaries summaries = new Summaries(List.of(), List.of(), List.of(), 1, 1);
         return new ScanResult("id-1", "demo.jar", "abc", 100L, "Paper", ArtifactType.PLUGIN_BUKKIT,
                 mainClass, "1.21", 80, verdict, 0, counts, info, findings, summaries, List.of(),
-                Instant.parse("2026-06-09T12:00:00Z"), 5L, "0.1.0", null);
+                Instant.parse("2026-06-09T12:00:00Z"), 5L, "0.1.0", null,
+                java.util.List.of(),
+                new dev.pluginguard.engine.model.Recommendation(
+                        dev.pluginguard.engine.model.RecommendationLevel.SAFE_TO_INSTALL, "test", java.util.List.of()));
     }
 
     private record StubRunner(SandboxOutcome outcome) implements SandboxRunner {
