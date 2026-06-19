@@ -110,6 +110,7 @@ export const CATEGORY_LABEL: Record<Category, string> = {
   MALWARE_SIGNATURE: "Known malware",
   RESOURCE_PACK: "Resource pack",
   DATA_PACK: "Data pack",
+  PERFORMANCE: "Performance",
   PROVENANCE: "Provenance",
 };
 

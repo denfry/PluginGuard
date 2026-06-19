@@ -9,6 +9,15 @@ export type Verdict =
   | "HIGH_RISK"
   | "CRITICAL_RISK";
 
+export type Axis = "SECURITY" | "PERFORMANCE" | "COMPATIBILITY" | "HEALTH" | "LICENSE";
+
+export type RecommendationLevel =
+  | "SAFE_TO_INSTALL"
+  | "INSTALL_WITH_CARE"
+  | "RISKY"
+  | "AVOID"
+  | "DO_NOT_INSTALL";
+
 export type Category =
   | "STRUCTURE"
   | "PLUGIN_YML"
@@ -30,6 +39,7 @@ export type Category =
   | "MALWARE_SIGNATURE"
   | "RESOURCE_PACK"
   | "DATA_PACK"
+  | "PERFORMANCE"
   | "PROVENANCE";
 
 /** Classified artifact kind — mirrors the analyzer's dev.pluginguard.engine.model.ArtifactType. */
@@ -65,6 +75,20 @@ export interface SeverityCounts {
   medium: number;
   low: number;
   info: number;
+}
+
+export interface AxisScore {
+  axis: Axis;
+  score: number;
+  verdict: Verdict;
+  counts: SeverityCounts;
+  headline: string;
+}
+
+export interface Recommendation {
+  level: RecommendationLevel;
+  headline: string;
+  perAxis: string[];
 }
 
 export interface PluginInfo {
@@ -162,4 +186,6 @@ export interface ScanResult {
   durationMs: number;
   engineVersion: string;
   sandbox: SandboxReport | null;
+  axes: AxisScore[];
+  recommendation: Recommendation;
 }
