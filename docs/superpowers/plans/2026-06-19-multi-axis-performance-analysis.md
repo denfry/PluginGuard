@@ -1979,7 +1979,7 @@ public class PerformanceAnalyzer implements Analyzer {
                         + " (context frequency: " + reach.heat().name().toLowerCase() + "). "
                         + "Expensive work on the server thread stalls the tick and lowers TPS under load.")
                 .recommendation(sink.recommendation())
-                .location(where + (c.nestedPath() == null ? "" : ""))
+                .location(where)
                 .evidence(inv.ownerDotted() + "." + inv.name())
                 .scoreImpact(scoreImpact(severity))
                 .nestedPath(c.nestedPath())
