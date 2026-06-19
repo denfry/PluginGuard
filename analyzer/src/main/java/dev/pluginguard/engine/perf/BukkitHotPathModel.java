@@ -59,7 +59,7 @@ public class BukkitHotPathModel implements HotPathModel {
             boolean isRunnable = BUKKIT_RUNNABLE.equals(c.superName());
 
             for (MethodInfo m : c.methods()) {
-                if (isListener && m.annotations().contains(EVENT_HANDLER)) {
+                if (isListener && m.annotations().contains(EVENT_HANDLER) && hasEventParam(m.descriptor())) {
                     out.add(new HotEntrypoint(c.internalName(), m.name(), eventHeat(m.descriptor())));
                 }
                 if (isRunnable && m.name().equals("run") && m.descriptor().equals("()V") && hasSyncScheduler) {
@@ -68,6 +68,21 @@ public class BukkitHotPathModel implements HotPathModel {
             }
         }
         return out;
+    }
+
+    /**
+     * Returns true when the method descriptor contains a single object parameter whose simple class
+     * name ends with {@code "Event"}, e.g. {@code (Lorg/bukkit/event/player/PlayerMoveEvent;)V}.
+     */
+    private static boolean hasEventParam(String methodDescriptor) {
+        int start = methodDescriptor.indexOf('L');
+        int end = methodDescriptor.indexOf(';');
+        if (start < 0 || end < 0 || end < start) {
+            return false;
+        }
+        String internal = methodDescriptor.substring(start + 1, end);
+        String simple = internal.substring(internal.lastIndexOf('/') + 1);
+        return simple.endsWith("Event");
     }
 
     /** Heat from the (single) event parameter's simple class name; unknown *Event -> WARM, else COOL. */

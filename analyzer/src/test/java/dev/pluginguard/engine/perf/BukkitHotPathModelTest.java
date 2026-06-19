@@ -46,6 +46,47 @@ class BukkitHotPathModelTest {
         assertThat(model.supports(ArtifactType.MOD_FABRIC)).isFalse();
     }
 
+    @Test
+    void runnableRunIsWarmWhenSyncSchedulerPresent() {
+        List<ClassScan> classes = scanAll(new JarBuilder()
+                .addRunnableClass("com/x/Task",
+                        JarBuilder.calls(new JarBuilder.Call("java/sql/DriverManager", "getConnection")))
+                .addClass("com/x/Plugin", "onEnable",
+                        JarBuilder.calls(new JarBuilder.Call("org/bukkit/scheduler/BukkitScheduler", "runTaskTimer")),
+                        java.util.List.of())
+                .build());
+
+        assertThat(model.entrypoints(classes)).anyMatch(e ->
+                e.classInternalName().equals("com/x/Task")
+                        && e.methodName().equals("run")
+                        && e.heat() == Heat.WARM);
+    }
+
+    @Test
+    void runnableRunIsNotHotWhenOnlyAsyncScheduler() {
+        List<ClassScan> classes = scanAll(new JarBuilder()
+                .addRunnableClass("com/x/Task",
+                        JarBuilder.calls(new JarBuilder.Call("java/sql/DriverManager", "getConnection")))
+                .addClass("com/x/Plugin", "onEnable",
+                        JarBuilder.calls(new JarBuilder.Call("org/bukkit/scheduler/BukkitScheduler",
+                                "runTaskTimerAsynchronously")),
+                        java.util.List.of())
+                .build());
+
+        assertThat(model.entrypoints(classes)).noneMatch(e -> e.methodName().equals("run"));
+    }
+
+    @Test
+    void unknownEventDefaultsToWarm() {
+        List<ClassScan> classes = scanAll(new JarBuilder()
+                .addListenerClass("com/x/L", "onCustom",
+                        "com/example/CustomFooEvent", JarBuilder.calls())
+                .build());
+
+        assertThat(model.entrypoints(classes)).anyMatch(e ->
+                e.methodName().equals("onCustom") && e.heat() == Heat.WARM);
+    }
+
     private static List<ClassScan> scanAll(byte[] jar) {
         List<ClassScan> out = new java.util.ArrayList<>();
         try (var zis = new java.util.zip.ZipInputStream(new java.io.ByteArrayInputStream(jar))) {
