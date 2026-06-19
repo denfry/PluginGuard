@@ -162,6 +162,7 @@ export function SandboxPanel({ report }: { report: SandboxReport }) {
       title="dynamic sandbox"
       icon={<EyeIcon className="h-4 w-4" />}
       action={<StatusBadge report={report} />}
+      delay={0.05}
     >
       <div className="space-y-4">
         <p className="text-xs leading-relaxed text-muted">

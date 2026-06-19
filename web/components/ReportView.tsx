@@ -2,7 +2,8 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import type { ScanResult, Severity } from "@/lib/types";
-import { formatBytes, SEVERITY_ORDER, SEVERITY_STYLE } from "@/lib/format";
+import { formatBytes, RECOMMENDATION_LABEL, recommendationColor, SEVERITY_ORDER, SEVERITY_STYLE } from "@/lib/format";
+import { AxisScores } from "@/components/AxisScores";
 import { ScoreGauge } from "./ScoreGauge";
 import { VerdictBadge, SeverityStat } from "./Badges";
 import { Panel } from "./Panel";
@@ -166,7 +167,7 @@ export function ReportView({ report }: { report: ScanResult }) {
   return (
     <div className="container-page space-y-6 py-10">
       {/* Dossier header */}
-      <Panel>
+      <Panel delay={0}>
         <div className="flex flex-col gap-10 lg:flex-row lg:items-center">
           <div className="min-w-0 flex-1 space-y-5">
             <div className="flex flex-wrap items-center gap-3">
@@ -227,11 +228,29 @@ export function ReportView({ report }: { report: ScanResult }) {
         </div>
       </Panel>
 
+      {report.recommendation && (
+        <div className="mt-4 rounded-md border border-line bg-panel/40 p-4">
+          <div className="flex items-center gap-2">
+            <span className="micro-label text-faint">Recommendation</span>
+            <span className={`font-display text-lg font-semibold ${recommendationColor(report.recommendation.level)}`}>
+              {RECOMMENDATION_LABEL[report.recommendation.level]}
+            </span>
+          </div>
+          <p className="mt-1 text-sm text-muted">{report.recommendation.headline}</p>
+        </div>
+      )}
+      {report.axes && report.axes.length > 0 && (
+        <div className="mt-4">
+          <AxisScores axes={report.axes} />
+        </div>
+      )}
+
       {/* Metadata + summaries */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
         <Panel
           title={pluginInfo?.descriptorFile ?? "descriptor"}
           icon={<FileIcon className="h-4 w-4" />}
+          delay={0.05}
         >
           {pluginInfo ? (
             <div className="space-y-4">
@@ -268,14 +287,22 @@ export function ReportView({ report }: { report: ScanResult }) {
           )}
         </Panel>
 
-        <Panel title="network" icon={<NetworkIcon className="h-4 w-4" />}>
+        <Panel
+          title="network"
+          icon={<NetworkIcon className="h-4 w-4" />}
+          delay={0.1}
+        >
           <HairlineList
             items={summaries.network}
             empty="No network indicators found."
           />
         </Panel>
 
-        <Panel title="filesystem" icon={<FolderIcon className="h-4 w-4" />}>
+        <Panel
+          title="filesystem"
+          icon={<FolderIcon className="h-4 w-4" />}
+          delay={0.15}
+        >
           <HairlineList
             items={summaries.filesystem}
             empty="No notable filesystem paths."
@@ -286,6 +313,7 @@ export function ReportView({ report }: { report: ScanResult }) {
           title="dependencies"
           icon={<BoxIcon className="h-4 w-4" />}
           className="lg:col-span-2"
+          delay={0.2}
         >
           {summaries.dependencies.length ? (
             <div className="flex flex-wrap gap-1.5">
@@ -306,7 +334,11 @@ export function ReportView({ report }: { report: ScanResult }) {
           )}
         </Panel>
 
-        <Panel title="obfuscation" icon={<EyeIcon className="h-4 w-4" />}>
+        <Panel
+          title="obfuscation"
+          icon={<EyeIcon className="h-4 w-4" />}
+          delay={0.25}
+        >
           <div className="flex items-end gap-2">
             <span className="font-display text-3xl font-semibold tabular-nums">
               {report.obfuscationScore}
@@ -326,6 +358,7 @@ export function ReportView({ report }: { report: ScanResult }) {
       <Panel
         title={`findings — ${findings.length}`}
         icon={<AlertIcon className="h-4 w-4" />}
+        delay={0.1}
         action={
           findings.length > 0 ? (
             <div className="micro-label flex items-center gap-2 text-faint">
@@ -413,7 +446,7 @@ export function ReportView({ report }: { report: ScanResult }) {
       {report.sandbox && <SandboxPanel report={report.sandbox} />}
 
       {report.notes.length > 0 && (
-        <Panel title="engine notes">
+        <Panel title="engine notes" delay={0.05}>
           <ul className="space-y-1.5 text-sm text-muted">
             {report.notes.map((n, i) => (
               <li key={i} className="flex gap-2">

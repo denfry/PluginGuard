@@ -28,6 +28,8 @@ import java.util.regex.Pattern;
 public class StringIocAnalyzer implements Analyzer {
 
     private static final Pattern URL = Pattern.compile("https?://([^/\\s\"'<>\\\\)]+)(\\S*)", Pattern.CASE_INSENSITIVE);
+    /** Format/log placeholders that make a URL "host" a template, not a real endpoint (SLF4J {}, printf %s, ${...}). */
+    private static final Pattern HOST_PLACEHOLDER = Pattern.compile("[{}$%]");
     private static final Pattern IPV4 = Pattern.compile("\\b(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\.(\\d{1,3})\\b");
     private static final Pattern BASE64_BLOB = Pattern.compile("[A-Za-z0-9+/]{120,}={0,2}");
     private static final Pattern WIN_PATH = Pattern.compile("[A-Za-z]:\\\\[^\"'\\s]{2,}");
@@ -109,6 +111,9 @@ public class StringIocAnalyzer implements Analyzer {
         while (um.find()) {
             String host = um.group(1);
             String full = um.group();
+            if (!isPlausibleHost(host)) {
+                continue; // e.g. the log template "http://{}:{}" — not a real endpoint
+            }
             ctx.addNetworkIndicator(host);
             String fl = full.toLowerCase(Locale.ROOT);
             if (fl.contains("/api/webhooks") || (host.toLowerCase(Locale.ROOT).contains("discord") && fl.contains("webhook"))) {
@@ -285,6 +290,27 @@ public class StringIocAnalyzer implements Analyzer {
             return false; // link-local
         }
         return true;
+    }
+
+    /**
+     * Rejects URL "hosts" that are really log/format templates rather than endpoints — e.g. the SLF4J
+     * pattern {@code http://{}:{}} or a {@code String.format} target. A real host is {@code localhost}
+     * or contains a dot and only hostname/IP characters (optionally with a {@code :port}).
+     */
+    private boolean isPlausibleHost(String host) {
+        if (host == null || host.isBlank() || HOST_PLACEHOLDER.matcher(host).find()) {
+            return false;
+        }
+        String hostOnly = host;
+        int colon = hostOnly.indexOf(':');
+        if (colon >= 0) {
+            hostOnly = hostOnly.substring(0, colon);
+        }
+        hostOnly = hostOnly.toLowerCase(Locale.ROOT);
+        if (hostOnly.equals("localhost")) {
+            return true;
+        }
+        return hostOnly.contains(".") && hostOnly.matches("[a-z0-9.\\-]+");
     }
 
     private boolean isTextResource(String name) {

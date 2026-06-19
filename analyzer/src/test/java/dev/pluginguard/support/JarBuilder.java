@@ -162,4 +162,82 @@ public class JarBuilder {
     public static List<Call> calls(Call... c) {
         return new ArrayList<>(List.of(c));
     }
+
+    /** A class implementing org/bukkit/event/Listener with an @EventHandler method taking one event. */
+    public JarBuilder addListenerClass(String internalName, String handlerName,
+                                       String eventInternalName, List<Call> handlerCalls) {
+        entries.put(internalName + ".class",
+                listenerClassBytes(internalName, handlerName, eventInternalName, handlerCalls));
+        return this;
+    }
+
+    /** A class extending org/bukkit/scheduler/BukkitRunnable with a run()V body of the given calls. */
+    public JarBuilder addRunnableClass(String internalName, List<Call> runCalls) {
+        entries.put(internalName + ".class",
+                superclassClassBytes(internalName, "org/bukkit/scheduler/BukkitRunnable", "run", runCalls));
+        return this;
+    }
+
+    /** A class extending an arbitrary superclass with one method of the given calls. */
+    public JarBuilder addClassExtending(String internalName, String superName,
+                                        String methodName, List<Call> calls) {
+        entries.put(internalName + ".class", superclassClassBytes(internalName, superName, methodName, calls));
+        return this;
+    }
+
+    private static byte[] listenerClassBytes(String internalName, String handlerName,
+                                             String eventInternalName, List<Call> calls) {
+        ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        cw.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC, internalName, null, "java/lang/Object",
+                new String[]{"org/bukkit/event/Listener"});
+        emitDefaultCtor(cw);
+
+        // public void handler(LEvent;) { <calls>; return; } annotated @EventHandler
+        MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC, handlerName,
+                "(L" + eventInternalName + ";)V", null, null);
+        mv.visitAnnotation("Lorg/bukkit/event/EventHandler;", true).visitEnd();
+        mv.visitCode();
+        for (Call c : calls) {
+            mv.visitMethodInsn(Opcodes.INVOKESTATIC, c.owner(), c.name(), "()V", false);
+        }
+        mv.visitInsn(Opcodes.RETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
+
+        cw.visitEnd();
+        return cw.toByteArray();
+    }
+
+    private static byte[] superclassClassBytes(String internalName, String superName,
+                                               String methodName, List<Call> calls) {
+        ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
+        cw.visit(Opcodes.V1_8, Opcodes.ACC_PUBLIC, internalName, null, superName, null);
+        emitDefaultCtorFor(cw, superName);
+
+        MethodVisitor mv = cw.visitMethod(Opcodes.ACC_PUBLIC, methodName, "()V", null, null);
+        mv.visitCode();
+        for (Call c : calls) {
+            mv.visitMethodInsn(Opcodes.INVOKESTATIC, c.owner(), c.name(), "()V", false);
+        }
+        mv.visitInsn(Opcodes.RETURN);
+        mv.visitMaxs(0, 0);
+        mv.visitEnd();
+
+        cw.visitEnd();
+        return cw.toByteArray();
+    }
+
+    private static void emitDefaultCtor(ClassWriter cw) {
+        emitDefaultCtorFor(cw, "java/lang/Object");
+    }
+
+    private static void emitDefaultCtorFor(ClassWriter cw, String superName) {
+        MethodVisitor ctor = cw.visitMethod(Opcodes.ACC_PUBLIC, "<init>", "()V", null, null);
+        ctor.visitCode();
+        ctor.visitVarInsn(Opcodes.ALOAD, 0);
+        ctor.visitMethodInsn(Opcodes.INVOKESPECIAL, superName, "<init>", "()V", false);
+        ctor.visitInsn(Opcodes.RETURN);
+        ctor.visitMaxs(0, 0);
+        ctor.visitEnd();
+    }
 }

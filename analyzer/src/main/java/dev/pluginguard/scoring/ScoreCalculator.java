@@ -1,16 +1,22 @@
 package dev.pluginguard.scoring;
 
+import dev.pluginguard.engine.model.Axis;
+import dev.pluginguard.engine.model.AxisScore;
 import dev.pluginguard.engine.model.Category;
 import dev.pluginguard.engine.model.Finding;
 import dev.pluginguard.engine.model.Severity;
+import dev.pluginguard.engine.model.SeverityCounts;
+import dev.pluginguard.engine.model.Verdict;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 /**
- * Turns findings into a 0–100 security score (higher = safer).
+ * Turns findings into a 0–100 score (higher = safer); also scores each axis independently via
+ * {@link #scoreByAxis(java.util.List)}.
  *
  * <p>Starting from 100, each distinct rule deducts its {@code scoreImpact} once, plus a bounded
  * surcharge for repeated occurrences (up to +75% of the base impact). Grouping by rule prevents a
@@ -36,9 +42,31 @@ public class ScoreCalculator {
     private static final int HIGH_SCORE_CEILING = 55;
 
     public int score(List<Finding> findings) {
+        return applyCeilings(deduct(findings), findings);
+    }
+
+    /** One {@link AxisScore} per axis that has at least one finding, ordered by {@link Axis} ordinal. */
+    public List<AxisScore> scoreByAxis(List<Finding> findings) {
+        List<AxisScore> out = new ArrayList<>();
+        for (Axis axis : Axis.values()) {
+            List<Finding> axisFindings = findings.stream()
+                    .filter(f -> f.category().axis() == axis)
+                    .toList();
+            if (axisFindings.isEmpty()) {
+                continue;
+            }
+            int score = applyCeilings(deduct(axisFindings), axisFindings);
+            SeverityCounts counts = SeverityCounts.from(axisFindings);
+            Verdict verdict = Verdict.from(score, counts);
+            out.add(new AxisScore(axis, score, verdict, counts, headline(axis, counts)));
+        }
+        return out;
+    }
+
+    /** Raw 0–100 score from the per-rule deduction model, before severity ceilings. */
+    private double rawDeduction(List<Finding> findings) {
         Map<String, List<Finding>> byRule = findings.stream()
                 .collect(Collectors.groupingBy(Finding::ruleId));
-
         double deduction = 0;
         for (List<Finding> group : byRule.values()) {
             int impact = group.stream().mapToInt(Finding::scoreImpact).max().orElse(0);
@@ -52,18 +80,33 @@ public class ScoreCalculator {
             }
             deduction += base;
         }
+        return deduction;
+    }
 
-        int score = (int) Math.round(100 - deduction);
-        score = Math.max(0, Math.min(100, score));
+    private int deduct(List<Finding> findings) {
+        int score = (int) Math.round(100 - rawDeduction(findings));
+        return Math.max(0, Math.min(100, score));
+    }
 
-        // Floor the numeric score to match the worst severity so the verdict and number agree.
+    private int applyCeilings(int score, List<Finding> findings) {
         boolean hasCritical = findings.stream().anyMatch(f -> f.severity() == Severity.CRITICAL);
         boolean hasHigh = findings.stream().anyMatch(f -> f.severity() == Severity.HIGH);
         if (hasCritical) {
-            score = Math.min(score, CRITICAL_SCORE_CEILING);
+            return Math.min(score, CRITICAL_SCORE_CEILING);
         } else if (hasHigh) {
-            score = Math.min(score, HIGH_SCORE_CEILING);
+            return Math.min(score, HIGH_SCORE_CEILING);
         }
         return score;
+    }
+
+    private static String headline(Axis axis, SeverityCounts counts) {
+        int serious = counts.critical() + counts.high();
+        if (serious > 0) {
+            return serious + " serious " + axis.displayName().toLowerCase() + " issue(s)";
+        }
+        if (counts.total() > 0) {
+            return counts.total() + " minor " + axis.displayName().toLowerCase() + " note(s)";
+        }
+        return "No " + axis.displayName().toLowerCase() + " issues found";
     }
 }

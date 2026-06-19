@@ -2,6 +2,8 @@ package dev.pluginguard.api;
 
 import dev.pluginguard.engine.AnalysisEngine;
 import dev.pluginguard.engine.model.ArtifactType;
+import dev.pluginguard.engine.model.Axis;
+import dev.pluginguard.engine.model.AxisScore;
 import dev.pluginguard.engine.model.BehaviorEvent;
 import dev.pluginguard.engine.model.Category;
 import dev.pluginguard.engine.model.Dependency;
@@ -9,6 +11,8 @@ import dev.pluginguard.engine.model.DynamicFinding;
 import dev.pluginguard.engine.model.DynamicFinding.DynamicCorrelation;
 import dev.pluginguard.engine.model.Finding;
 import dev.pluginguard.engine.model.PluginInfo;
+import dev.pluginguard.engine.model.Recommendation;
+import dev.pluginguard.engine.model.RecommendationLevel;
 import dev.pluginguard.engine.model.SandboxReport;
 import dev.pluginguard.engine.model.SandboxStatus;
 import dev.pluginguard.engine.model.ScanResult;
@@ -60,7 +64,14 @@ public final class DemoData {
                         .title("Source not verified")
                         .description("No GitHub repository or signed build was provided for this file.")
                         .recommendation("Prefer plugins from official, verifiable sources.")
-                        .scoreImpact(5).build());
+                        .scoreImpact(5).build(),
+                Finding.builder("PERF_BLOCKING_IO_HOT_PATH", Category.PERFORMANCE, Severity.HIGH)
+                        .title("Database query on the server thread in a hot path")
+                        .description("Runs a synchronous database query from a frequently-fired event — this can stall the server tick under load.")
+                        .recommendation("Move the query to an async task and cache the result.")
+                        .location("dev.chatguard.listener.MoveListener#onMove")
+                        .evidence("java.sql.Statement.executeQuery")
+                        .scoreImpact(20).build());
 
         PluginInfo info = new PluginInfo(
                 "plugin.yml", "ChatGuard", "1.4.2", "dev.chatguard.ChatGuardPlugin", "1.21",
@@ -78,6 +89,24 @@ public final class DemoData {
 
         int score = 78;
         SeverityCounts counts = SeverityCounts.from(findings);
+        SeverityCounts securityCounts = SeverityCounts.from(
+                findings.stream().filter(f -> f.category().axis() == Axis.SECURITY).toList());
+
+        List<AxisScore> axes = List.of(
+                new AxisScore(
+                        Axis.SECURITY, 78,
+                        Verdict.from(78, securityCounts), securityCounts, "1 serious security issue(s)"),
+                new AxisScore(
+                        Axis.PERFORMANCE, 55,
+                        Verdict.MEDIUM_RISK, new SeverityCounts(0, 1, 0, 0, 0),
+                        "1 serious performance issue(s)"));
+
+        Recommendation recommendation = new Recommendation(
+                RecommendationLevel.RISKY,
+                "Security is fine, but a database query on the server thread is a high lag risk — review before installing.",
+                List.of(
+                        "Security: Low Risk — 1 serious security issue(s)",
+                        "Performance: Medium Risk — 1 serious performance issue(s)"));
 
         SandboxReport sandbox = new SandboxReport(
                 SandboxStatus.COMPLETED,
@@ -132,6 +161,8 @@ public final class DemoData {
                 Instant.parse("2026-06-09T12:00:00Z"),
                 42L,
                 AnalysisEngine.ENGINE_VERSION,
-                sandbox);
+                sandbox,
+                axes,
+                recommendation);
     }
 }

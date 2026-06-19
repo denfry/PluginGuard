@@ -31,31 +31,47 @@ export default function Home() {
       {/* Hero + uploader */}
       <section className="grid items-center gap-12 py-16 lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:py-24">
         <div className="space-y-7">
-          <p className="micro-label text-primary">
+          <p className="reveal micro-label flex items-center gap-2 text-primary">
+            <span
+              className="pulse-dot inline-block h-1.5 w-1.5 rounded-full bg-primary"
+              aria-hidden
+            />
             {"//"} minecraft plugin security
           </p>
-          <h1 className="font-display text-4xl font-semibold leading-[1.08] tracking-tight text-ink lg:text-[3.4rem]">
-            Know what a plugin <span className="text-primary">really does</span>{" "}
-            before you run it.
+          <h1
+            className="reveal font-display text-4xl font-semibold leading-[1.08] tracking-tight text-ink lg:text-[3.4rem]"
+            style={{ animationDelay: "0.08s" }}
+          >
+            Know what a plugin{" "}
+            <span className="text-primary text-glow">really does</span> before
+            you run it.
           </h1>
-          <p className="max-w-xl text-lg leading-relaxed text-muted">
+          <p
+            className="reveal max-w-xl text-lg leading-relaxed text-muted"
+            style={{ animationDelay: "0.16s" }}
+          >
             Upload a <span className="font-mono text-sm text-ink">.jar</span>{" "}
             and get a forensic report — dangerous calls, network indicators,
             obfuscation scoring and{" "}
             <span className="font-mono text-sm text-ink">plugin.yml</span>{" "}
             validation. Static analysis plus an isolated sandbox run.
           </p>
-          <p className="micro-label leading-6 text-faint">
+          <p
+            className="reveal micro-label leading-6 text-faint"
+            style={{ animationDelay: "0.24s" }}
+          >
             runtime.exec · webhooks · classloading · obfuscation · plugin.yml
           </p>
         </div>
 
-        <Dropzone />
+        <div className="reveal" style={{ animationDelay: "0.12s" }}>
+          <Dropzone />
+        </div>
       </section>
 
       {/* Analysis pipeline */}
       <section id="what-we-scan" className="scroll-mt-20 py-12">
-        <div className="mb-8 flex items-end justify-between gap-6">
+        <div className="reveal mb-8 flex items-end justify-between gap-6">
           <div>
             <p className="micro-label text-primary">{"//"} analysis pipeline</p>
             <h2 className="mt-2 font-display text-3xl font-semibold tracking-tight">
@@ -72,7 +88,7 @@ export default function Home() {
 
       {/* Example report teaser */}
       <section className="py-12">
-        <div className="rounded-xl border border-line bg-card p-6 lg:p-10">
+        <div className="reveal hover-lift rounded-xl border border-line bg-card p-6 lg:p-10">
           <div className="flex flex-col items-center gap-10 lg:flex-row lg:gap-14">
             <div className="flex shrink-0 flex-col items-center gap-3">
               <ScoreGauge score={78} />
@@ -113,10 +129,10 @@ export default function Home() {
 
               <Link
                 href="/demo"
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-bg transition hover:brightness-110"
+                className="btn-primary group inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm"
               >
                 Open the demo report
-                <ArrowRightIcon className="h-4 w-4" />
+                <ArrowRightIcon className="h-4 w-4 transition-transform duration-200 group-hover:translate-x-0.5" />
               </Link>
             </div>
           </div>

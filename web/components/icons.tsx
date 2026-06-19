@@ -157,3 +157,11 @@ export function CrosshairIcon(props: IconProps) {
     </svg>
   );
 }
+
+export function BoltIcon(props: IconProps) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M13 3L5 13h6l-1 8 8-10h-6z" />
+    </svg>
+  );
+}
