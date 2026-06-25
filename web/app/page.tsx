@@ -1,6 +1,12 @@
 import Link from "next/link";
 import { Dropzone } from "@/components/Dropzone";
 import { FeatureGrid } from "@/components/FeatureGrid";
+import { HowItWorks } from "@/components/HowItWorks";
+import { AxisStrip } from "@/components/AxisStrip";
+import { TrustGrid } from "@/components/TrustGrid";
+import { Faq } from "@/components/Faq";
+import { CallToAction } from "@/components/CallToAction";
+import { SectionHeading } from "@/components/SectionHeading";
 import { ScoreGauge } from "@/components/ScoreGauge";
 import { VerdictBadge, SeverityPill } from "@/components/Badges";
 import { ArrowRightIcon } from "@/components/icons";
@@ -29,14 +35,17 @@ export default function Home() {
   return (
     <div className="container-page">
       {/* Hero + uploader */}
-      <section className="grid items-center gap-12 py-16 lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:py-24">
+      <section
+        id="top"
+        className="grid items-center gap-12 py-16 lg:grid-cols-[1.05fr_1fr] lg:gap-16 lg:py-24"
+      >
         <div className="space-y-7">
           <p className="reveal micro-label flex items-center gap-2 text-primary">
             <span
               className="pulse-dot inline-block h-1.5 w-1.5 rounded-full bg-primary"
               aria-hidden
             />
-            {"//"} minecraft plugin security
+            {"//"} minecraft plugin &amp; mod security
           </p>
           <h1
             className="reveal font-display text-4xl font-semibold leading-[1.08] tracking-tight text-ink lg:text-[3.4rem]"
@@ -50,17 +59,18 @@ export default function Home() {
             className="reveal max-w-xl text-lg leading-relaxed text-muted"
             style={{ animationDelay: "0.16s" }}
           >
-            Upload a <span className="font-mono text-sm text-ink">.jar</span>{" "}
-            and get a forensic report — dangerous calls, network indicators,
-            obfuscation scoring and{" "}
+            Upload a plugin, mod, or resource pack and get a forensic report —
+            dangerous calls, network indicators, obfuscation scoring,
+            performance traps and{" "}
             <span className="font-mono text-sm text-ink">plugin.yml</span>{" "}
-            validation. Static analysis plus an isolated sandbox run.
+            validation. Static bytecode analysis plus an isolated sandbox run.
           </p>
           <p
             className="reveal micro-label leading-6 text-faint"
             style={{ animationDelay: "0.24s" }}
           >
-            runtime.exec · webhooks · classloading · obfuscation · plugin.yml
+            runtime.exec · webhooks · classloading · obfuscation · main-thread
+            lag · plugin.yml
           </p>
         </div>
 
@@ -69,26 +79,39 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Analysis pipeline */}
+      {/* How it works — the static + sandbox method */}
+      <section className="reveal-on-scroll py-12">
+        <SectionHeading
+          eyebrow="how it works"
+          title="From upload to verdict"
+          aside="Static analysis reads the code; the sandbox watches it run. You get both."
+        />
+        <HowItWorks />
+      </section>
+
+      {/* What static analysis inspects */}
       <section id="what-we-scan" className="scroll-mt-20 py-12">
-        <div className="reveal mb-8 flex items-end justify-between gap-6">
-          <div>
-            <p className="micro-label text-primary">{"//"} analysis pipeline</p>
-            <h2 className="mt-2 font-display text-3xl font-semibold tracking-tight">
-              Six passes over every JAR
-            </h2>
-          </div>
-          <p className="hidden max-w-xs text-right text-sm text-muted sm:block">
-            Each upload runs the full pipeline — no pass is skipped, no result
-            is cached from another file.
-          </p>
-        </div>
+        <SectionHeading
+          eyebrow="static analysis"
+          title="Six passes over every build"
+          aside="Each upload runs the full pipeline — no pass is skipped, no result is cached from another file."
+        />
         <FeatureGrid />
       </section>
 
+      {/* The five scoring axes */}
+      <section className="reveal-on-scroll py-12">
+        <SectionHeading
+          eyebrow="scoring model"
+          title="Graded on five axes"
+          aside="One number hides trade-offs. PluginGuard scores each concern on its own."
+        />
+        <AxisStrip />
+      </section>
+
       {/* Example report teaser */}
-      <section className="py-12">
-        <div className="reveal hover-lift rounded-xl border border-line bg-card p-6 lg:p-10">
+      <section className="reveal-on-scroll py-12">
+        <div className="hover-lift rounded-xl border border-line bg-card p-6 lg:p-10">
           <div className="flex flex-col items-center gap-10 lg:flex-row lg:gap-14">
             <div className="flex shrink-0 flex-col items-center gap-3">
               <ScoreGauge score={78} />
@@ -137,6 +160,27 @@ export default function Home() {
             </div>
           </div>
         </div>
+      </section>
+
+      {/* Trust & privacy */}
+      <section className="reveal-on-scroll py-12">
+        <SectionHeading
+          eyebrow="trust"
+          title="Built to be doubted"
+          aside="A security tool only earns trust by being clear about what it does with your file."
+        />
+        <TrustGrid />
+      </section>
+
+      {/* FAQ */}
+      <section className="reveal-on-scroll py-12">
+        <SectionHeading eyebrow="questions" title="The short answers" />
+        <Faq />
+      </section>
+
+      {/* Closing CTA */}
+      <section className="reveal-on-scroll pb-4 pt-8">
+        <CallToAction />
       </section>
     </div>
   );

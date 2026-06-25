@@ -61,10 +61,10 @@ export const SEVERITY_STYLE: Record<Severity, SeverityStyle> = {
   },
   HIGH: {
     label: "High",
-    text: "text-orange-400",
-    bg: "bg-orange-400/10",
-    border: "border-orange-400/30",
-    dot: "bg-orange-400",
+    text: "text-high",
+    bg: "bg-high/10",
+    border: "border-high/30",
+    dot: "bg-high",
   },
   MEDIUM: {
     label: "Medium",

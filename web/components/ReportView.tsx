@@ -2,8 +2,9 @@
 
 import { useMemo, useState, type ReactNode } from "react";
 import type { ScanResult, Severity } from "@/lib/types";
-import { formatBytes, RECOMMENDATION_LABEL, recommendationColor, SEVERITY_ORDER, SEVERITY_STYLE } from "@/lib/format";
+import { formatBytes, SEVERITY_ORDER, SEVERITY_STYLE } from "@/lib/format";
 import { AxisScores } from "@/components/AxisScores";
+import { RecommendationBanner } from "@/components/RecommendationBanner";
 import { ScoreGauge } from "./ScoreGauge";
 import { VerdictBadge, SeverityStat } from "./Badges";
 import { Panel } from "./Panel";
@@ -166,8 +167,13 @@ export function ReportView({ report }: { report: ScanResult }) {
 
   return (
     <div className="container-page space-y-6 py-10">
+      {/* The determination comes first — it is the answer the report exists to give. */}
+      {report.recommendation && (
+        <RecommendationBanner rec={report.recommendation} />
+      )}
+
       {/* Dossier header */}
-      <Panel delay={0}>
+      <Panel delay={0.05}>
         <div className="flex flex-col gap-10 lg:flex-row lg:items-center">
           <div className="min-w-0 flex-1 space-y-5">
             <div className="flex flex-wrap items-center gap-3">
@@ -228,21 +234,8 @@ export function ReportView({ report }: { report: ScanResult }) {
         </div>
       </Panel>
 
-      {report.recommendation && (
-        <div className="mt-4 rounded-md border border-line bg-panel/40 p-4">
-          <div className="flex items-center gap-2">
-            <span className="micro-label text-faint">Recommendation</span>
-            <span className={`font-display text-lg font-semibold ${recommendationColor(report.recommendation.level)}`}>
-              {RECOMMENDATION_LABEL[report.recommendation.level]}
-            </span>
-          </div>
-          <p className="mt-1 text-sm text-muted">{report.recommendation.headline}</p>
-        </div>
-      )}
       {report.axes && report.axes.length > 0 && (
-        <div className="mt-4">
-          <AxisScores axes={report.axes} />
-        </div>
+        <AxisScores axes={report.axes} />
       )}
 
       {/* Metadata + summaries */}
