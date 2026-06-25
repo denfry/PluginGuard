@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
@@ -19,9 +19,42 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "PluginGuard — Minecraft plugin security scanner",
+  title: {
+    default: "PluginGuard — Minecraft plugin security scanner",
+    template: "%s — PluginGuard",
+  },
   description:
-    "Upload a Minecraft plugin .jar and get a deep static security report: bytecode analysis, suspicious behaviour, network indicators, obfuscation score and plugin.yml validation.",
+    "Upload a Minecraft plugin, mod, or pack and get a forensic security report: bytecode analysis, network indicators, obfuscation scoring, performance traps and an isolated sandbox run — graded across five axes.",
+  applicationName: "PluginGuard",
+  keywords: [
+    "Minecraft",
+    "plugin security",
+    "Bukkit",
+    "Spigot",
+    "Paper",
+    "mod scanner",
+    "malware",
+    "static analysis",
+    "sandbox",
+  ],
+  openGraph: {
+    type: "website",
+    siteName: "PluginGuard",
+    title: "PluginGuard — Minecraft plugin security scanner",
+    description:
+      "Know what a plugin really does before you run it. Static bytecode analysis plus an isolated sandbox run, graded across five axes.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "PluginGuard — Minecraft plugin security scanner",
+    description:
+      "Know what a plugin really does before you run it. Static analysis plus an isolated sandbox run.",
+  },
+};
+
+export const viewport: Viewport = {
+  colorScheme: "dark",
+  themeColor: "#0a0d0b",
 };
 
 export default function RootLayout({

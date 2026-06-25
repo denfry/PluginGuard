@@ -1,35 +1,55 @@
 import type { AxisScore } from "@/lib/types";
 import { AXIS_LABEL, verdictColor, scoreStroke } from "@/lib/format";
 
-/** Compact horizontal strip of per-axis meters shown beside the main gauge. */
+/**
+ * The five scoring axes as a row of compact meters. Each reads like a gauge on a
+ * rack: a label, the value in its band colour, a thin fill bar, and a one-line
+ * reason. Sits directly on the page background, so it uses the --panel surface.
+ */
 export function AxisScores({ axes }: { axes: AxisScore[] }) {
   if (!axes || axes.length === 0) return null;
   return (
-    <div className="flex flex-wrap gap-3">
-      {axes.map((a) => (
-        <div
-          key={a.axis}
-          className="flex min-w-[9rem] flex-1 flex-col gap-1 rounded-md border border-line bg-panel/40 p-3"
-        >
-          <span className="micro-label text-faint">{AXIS_LABEL[a.axis]}</span>
-          <div className="flex items-baseline justify-between">
-            <span
-              className="font-display text-2xl font-semibold tabular-nums"
-              style={{ color: scoreStroke(a.score) }}
-            >
-              {a.score}
-            </span>
-            <span className={`text-xs ${verdictColor(a.verdict)}`}>{a.verdict.replace(/_/g, " ")}</span>
-          </div>
-          <div className="h-1 w-full overflow-hidden rounded-full bg-line">
+    <section className="reveal" aria-label="Per-axis scores" style={{ animationDelay: "0.1s" }}>
+      <p className="micro-label mb-2.5 text-faint">{"//"} scoring axes</p>
+      <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-5">
+        {axes.map((a) => {
+          const color = scoreStroke(a.score);
+          return (
             <div
-              className="h-full rounded-full"
-              style={{ width: `${a.score}%`, backgroundColor: scoreStroke(a.score) }}
-            />
-          </div>
-          <span className="text-[11px] text-muted">{a.headline}</span>
-        </div>
-      ))}
-    </div>
+              key={a.axis}
+              className="hover-lift flex flex-col gap-2 rounded-lg border border-line bg-panel p-3.5"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="micro-label truncate text-muted">
+                  {AXIS_LABEL[a.axis]}
+                </span>
+                <span
+                  className="font-display text-xl font-semibold tabular-nums leading-none"
+                  style={{ color }}
+                >
+                  {a.score}
+                </span>
+              </div>
+              <div className="h-1 w-full overflow-hidden rounded-full bg-line">
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${a.score}%`, backgroundColor: color }}
+                />
+              </div>
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="line-clamp-2 text-[11px] leading-snug text-muted">
+                  {a.headline}
+                </span>
+              </div>
+              <span
+                className={`micro-label mt-auto text-[10px] ${verdictColor(a.verdict)}`}
+              >
+                {a.verdict.replace(/_/g, " ")}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }

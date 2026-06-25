@@ -3,11 +3,18 @@
 @theme {
   --color-bg: #0a0d0b;
   --color-card: #0f130e;
+  /* Subtle surface for sub-cards that sit directly on the page background
+     (axis meters, callouts) — one notch above --card so they read as their
+     own objects without becoming a full panel. */
+  --color-panel: #12160f;
   --color-raised: #161c14;
   --color-line: rgb(222 240 216 / 0.08);
   --color-line-strong: rgb(222 240 216 / 0.18);
   --color-primary: #a3e635;
   --color-warning: #fbbf24;
+  /* HIGH severity sits between warning (amber) and danger (rose). Tokenized so
+     it joins the named system instead of a raw Tailwind orange. */
+  --color-high: #fb923c;
   --color-danger: #fb7185;
   --color-info: #38bdf8;
   --color-ink: #e9efe5;
@@ -161,6 +168,23 @@ body {
 .reveal {
   opacity: 0;
   animation: reveal-up 0.7s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* Scroll-linked entrance for below-the-fold sections. Progressive enhancement:
+ * without scroll-timeline support (or with reduced motion) the element is simply
+ * visible — it never depends on JS or an observer to reveal content. */
+.reveal-on-scroll {
+  opacity: 1;
+}
+@supports (animation-timeline: view()) {
+  @media (prefers-reduced-motion: no-preference) {
+    .reveal-on-scroll {
+      opacity: 0;
+      animation: reveal-up linear both;
+      animation-timeline: view();
+      animation-range: entry 4% cover 20%;
+    }
+  }
 }
 
 /* Phosphor text bloom for the one word that should glow. */
